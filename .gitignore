@@ -1,2 +1,9 @@
-config.*
+config.json.last
+
+*.exe
+*.z
+*.log
+
 build/
+chrome_user_data/
+firefox_user_data/

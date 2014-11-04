@@ -44,8 +44,9 @@ def change(orig, update):
     
 def get_int(data, key, default):
     try:
-        return int(data['key'])
-    except:
+        return int(data[key])
+    except Exception, e:
+        print e
         return default
             
 def update_config(update, reboot=True, ipc=True):
@@ -188,7 +189,7 @@ class circumvention_settings:
             shadowsocks_config['server_port'] = get_int(data, 'shadowsocks_server_port', 0)
             shadowsocks_config['password'] = data.get('shadowsocks_password')
             shadowsocks_config['method'] = data.get('shadowsocks_method')
-            shadowsocks_config['timeout'] = get_int(data, 'timeout', 0)
+            shadowsocks_config['timeout'] = get_int(data, 'shadowsocks_timeout', 0)
             shadowsocks_config['fast_open'] = 0
             if data.get('shadowsocks_fast_open'):
                 shadowsocks_config['fast_open'] = 1
