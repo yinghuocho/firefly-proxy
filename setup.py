@@ -13,6 +13,8 @@ build_exe_options = {
 		"custom-blacklist.txt",
 		"custom-whitelist.txt",
 		"ca-bundle.crt",
+		"README",
+		"LICENSE",
 		("webui\\static", "webui\\static"),
 		("webui\\templates", "webui\\templates"),
 		("tools\\", "tools"),

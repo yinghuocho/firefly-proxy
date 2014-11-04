@@ -4,7 +4,6 @@ integrated
 ==========
     * gsocks
     * ghttproxy
-    * shadowsocks
     * putty
     * SysTrayIcon.py
     
@@ -15,6 +14,7 @@ dependencies
     * requests
     * requesocks
     * grequests
+    * shadowsocks
     * win_inet_pton (under Windows)
     
 packaging
