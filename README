@@ -1,0 +1,24 @@
+A proxy software specifically designed to help circumventing the Great Firewall.
+
+integrated
+==========
+    * gsocks
+    * ghttproxy
+    * shadowsocks
+    * putty
+    * SysTrayIcon.py
+    
+dependencies
+============
+    * web.py
+    * gevent
+    * requests
+    * requesocks
+    * grequests
+    * win_inet_pton (under Windows)
+    
+packaging
+=========
+    * cx_Freeze
+    * nsis
+    

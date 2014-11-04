@@ -1,0 +1,86 @@
+<%inherit file="base.html"/>
+
+<%block name="nav">
+    <ul class="nav nav-sidebar">
+        <li><a href="/proxy">代理配置</a></li>
+        <li><a href="/blacklist">黑名单配置</a></li>
+        <li class="active"><a href="/about">关于</a></li>
+    </ul>  
+</%block>
+
+<%block name="main">
+    <h3 class="page-header"><a id="readme">说明/帮助</a></h3>
+    
+        <p>
+            萤火虫翻墙代理主要由本地代理、黑名单、翻墙代理组成。基本工作流程如下：
+            <ul>
+                <li>浏览器访问网页时将请求发送至本地代理;</li>
+                <li>本地代理查找黑名单，如果请求网址（域名/IP地址）不在黑名单中，则直接通过本地网络连接访问;</li>
+                <li>如果请求网址在黑名单中，则转发给翻墙代理;</li>
+                <li>翻墙代理转发给远程服务器，完成访问。</li>
+            </ul>
+        </p>
+        <br/>
+        <p>
+            本地代理支持 SOCKS5 及 HTTP/HTTPS 代理，可以通过<a href="/proxy#local">这里</a>进行配置。
+        </p>
+        <br/>
+        <p>
+            翻墙代理支持：
+            <ul>
+                <li><a href="https://trac.torproject.org/projects/tor/wiki/doc/meek" target="_blank">meek</a>:
+                由 <a href="https://www.torproject.org/" target="_blank">Tor</a> 的开发者设计的一种传输协议。
+                萤火虫提供内置的 meek 翻墙通道。
+                </li>
+                <li>基于 SSH 的翻墙通道。萤火虫使用 putty 来连接 SSH 服务器（注意：putty 只支持
+                自定义的密钥格式，如果使用私钥进行认证请先用
+                    <a href="http://the.earth.li/~sgtatham/putty/latest/x86/puttygen.exe" target="_blank">
+                        PuTTYgen
+                    </a> 转换密钥格式）。
+                </li>
+                <li>
+                    基于 <a href="http://shadowsocks.org/" target="_blank">Shadowsocks</a> 的翻墙通道。
+                </li>
+            </ul>
+            配置在<a href="/proxy#circumvention">这里</a>。
+        </p>
+        <br/>
+        <p>
+            萤火虫翻墙代理内置一个被 GFW 封锁的网站黑名单，你也可以通过<a href="/blacklist">自定义黑名单/白名单</a>
+            来指定你希望通过或不通过翻墙代理访问的网站。
+        </p>
+        <br/>
+        <p>
+            萤火虫翻墙代理默认会尝试打开系统默认浏览器，并设置代理。你也可以<a href="/proxy#browser">关闭/激活这一功能</a>。
+        </p>
+        <br/>
+        <p>
+            <strong>注意：萤火虫翻墙代理不会隐藏你的网络访问记录，如果有特别的安全需要，请下载
+            <a href="https://www.torproject.org/" target="_blank">Tor</a>。
+            </strong>
+        </p>
+        <br/>
+        
+        <br/>
+    <h3 class="page-header"><a id="homepage">项目主页</a></h3>
+        <p>
+            <a href="https://github.com/yinghuocho" target="_blank">
+                https://github.com/yinghuocho/firefly-proxy
+            </a>
+        </p>
+        
+        <p>
+            <a href="https://github.com/yinghuocho/firefly-proxy/issues" target="_blank">
+                问题/反馈    
+            </a>
+        </p>
+    <br/>
+    
+    <br/>
+    <h3 class="page-header"><a id="people">作者/贡献者</a></h3>
+    <ul>
+        <li>yinghuocho@gmail.com</li>    
+    </ul>
+    <br/>
+    <br/>
+</%block>

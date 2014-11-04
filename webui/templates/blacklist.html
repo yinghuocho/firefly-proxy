@@ -1,0 +1,68 @@
+<%inherit file="base.html"/>
+
+<%block name="nav">
+    <ul class="nav nav-sidebar">
+        <li><a href="/proxy">代理配置</a></li>
+        <li class="active"><a href="/blacklist">黑名单配置</a></li>
+        <li><a href="/about">关于</a></li>
+    </ul>  
+</%block>
+
+<%block name="main">
+    <h3 class="page-header"><a id="bl">系统黑名单</a></h3>
+    <p>
+        内置 GFW 黑名单，更新于 ${bl_date}，共包括 ${bl_count} 个网站域名，<a href="/blacklist/bl" target="_blank">查看全部</a>。
+    </p>
+    <form action="/blacklist/bl" method="post" role="form">
+        <div class="row">
+                <button type="submit" class="btn btn-default btn-sm">更新内置黑名单</button>
+                <span class="small alert alert-success" style="display:none"></span>
+                <span class="small alert alert-danger" style="display:none"></span>
+        </div>
+    </form>
+    <br>
+        
+    <h3 class="page-header"><a id="custom_bl">自定义黑名单</a></h3>
+    <p>
+        如果你想通过翻墙代理访问的网站不在内置黑名单中，请加入自定义黑名单。
+        请直接输入网站域名，如 www.google.com 或 *.google.com（表示所有以 .google.com 结尾的域名）。
+    </p>
+    <form action="/blacklist/custom_bl" method="post" role="form">
+        <div class="row form-group">
+            <div class="col-sm-6">
+                <textarea class="form-control" rows="10" name="custom_bl">${custom_bl}</textarea>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <button type="submit" class="btn btn-default btn-sm">更新自定义黑名单</button>
+            <span class="small alert alert-success" style="display:none"></span>
+            <span class="small alert alert-danger" style="display:none"></span>
+        </div>
+    </form>
+    <br>
+    
+    <h3 class="page-header"><a id="custom_wl">自定义白名单</a></h3>
+    <p>
+        如果你发现内置的黑名单错误地列入了没有被 GFW 封锁的网站，导致无法访问或访问速度很慢，请加入白名单，确保从本地直接访问。
+    </p>
+    <form role="form" action="/blacklist/custom_wl" method="post">
+        <div class="row form-group">
+            <div class="col-sm-6">
+                <textarea class="form-control" rows="10" name="custom_wl">${custom_wl}</textarea>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <button type="submit" class="btn btn-default btn-sm">更新自定义白名单</button>
+            <span class="small alert alert-success" style="display:none"></span>
+            <span class="small alert alert-danger" style="display:none"></span>
+        </div>
+    </form>
+    <br>
+</%block>
+
+<%block name="extrajs">
+<script src="/static/js/fl.js"></script>
+</%block>
+
