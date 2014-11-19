@@ -1,14 +1,13 @@
 # a relay with policy based forwarding.
 import logging
-import re
 
 from gevent import socket
-from urlparse import urlparse
 
 from relay import SocksSession, RelayFactory, RelaySession
 from socks_relay import SocksForwardSession
-from utils import *
-from msg import *
+
+import msg
+import utils
 
 log = logging.getLogger(__name__)
 
@@ -22,10 +21,10 @@ class SmartRelaySession(RelaySession):
         self.handler = None
         
     def forward_handshake(self, socksconn):
-        initreq = InitRequest()
+        initreq = msg.InitRequest()
         socksconn.sendall(initreq.pack())
-        initreply = read_init_reply(socksconn)
-        if initreply.method != NO_AUTHENTICATION_REQUIRED:
+        initreply = utils.read_init_reply(socksconn)
+        if initreply.method != msg.NO_AUTHENTICATION_REQUIRED:
             return False
         return True
         
@@ -57,7 +56,7 @@ class SmartRelaySession(RelaySession):
         remoteconn = socket.create_connection((forwardurl.hostname, forwardurl.port), self.timeout)
         remoteconn.settimeout(self.timeout)
         handler = SocksForwardSession(self.socksconn, remoteconn)
-        
+
         # copy already-exist states from previous handler
         handler.client_associate = local_handler.client_associate
         handler.last_clientaddr = local_handler.last_clientaddr
@@ -67,11 +66,11 @@ class SmartRelaySession(RelaySession):
         
         # handshake, then request-reply, then send first packet, finally start to pipe
         if self.forward_handshake(handler.remoteconn):
-            handler.local2remote_udpsock = bind_local_udp(handler.remoteconn)
+            handler.local2remote_udpsock = utils.bind_local_udp(handler.remoteconn)
             handler.track_sock(handler.local2remote_udpsock)
-            send_request(handler.remoteconn, UDP_ASSOCIATE, *sock_addr_info(handler.local2remote_udpsock))
-            reply = read_reply(handler.remoteconn)
-            if reply.rep != SUCCEEDED:
+            utils.send_request(handler.remoteconn, msg.UDP_ASSOCIATE, *utils.sock_addr_info(handler.local2remote_udpsock))
+            reply = utils.read_reply(handler.remoteconn)
+            if reply.rep != msg.SUCCEEDED:
                 return           
             handler.remote_associate = (reply.bndaddr, reply.bndport)
             handler.last_clientaddr = firstaddr

@@ -32,8 +32,8 @@ def main():
     localport = int(sys.argv[2])
     
     rules = {
-        (re.compile(r'.*\.whereisip\.net$'), re.compile(r'.*'), re.compile(r'.*')): urlparse('socks5://127.0.0.1:8080/'),
-        (re.compile(r'.*\.google\.com$'), re.compile(r'.*'), re.compile(r'.*')): urlparse('socks5://127.0.0.1:8080/'),
+        (re.compile(r'.*\.whereisip\.net$'), re.compile(r'.*'), re.compile(r'.*')): urlparse('socks5://127.0.0.1:1080/'),
+        (re.compile(r'.*\.google\.com$'), re.compile(r'.*'), re.compile(r'.*')): urlparse('socks5://127.0.0.1:1080/'),
     }
     match = SocksForwardRegexMatch(rules)
     relay = SmartRelayFactory(match)

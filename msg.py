@@ -42,9 +42,9 @@ ADDR_TYPE_NOT_SUPPORTED         = '\x08'
         
 def pack_addr(addrtype, addr):
     if addrtype == IP_V4:
-        s = socket.inet_pton(socket.AF_INET, addr)
+        s = socket.inet_pton(socket.AF_INET, addr)  # @UndefinedVariable
     elif addrtype == IP_V6:
-        s = socket.inet_pton(socket.AF_INET6, addr)
+        s = socket.inet_pton(socket.AF_INET6, addr)  # @UndefinedVariable
     elif addrtype == DOMAIN_NAME:
         s = struct.pack('B', len(addr))
         s += addr
@@ -54,10 +54,10 @@ def pack_addr(addrtype, addr):
 
 def unpack_addr(addrtype, buf, offset):
     if addrtype == IP_V4:
-        addr = socket.inet_ntop(socket.AF_INET, buf[offset:(offset+4)])
+        addr = socket.inet_ntop(socket.AF_INET, buf[offset:(offset+4)])  # @UndefinedVariable
         nxt = offset+4
     elif addrtype == IP_V6:
-        addr = socket.inet_ntop(socket.AF_INET6, buf[offset:(offset+16)])
+        addr = socket.inet_ntop(socket.AF_INET6, buf[offset:(offset+16)])  # @UndefinedVariable
         nxt = offset+16
     elif addrtype == DOMAIN_NAME:
         length = struct.unpack('B', buf[offset])[0]

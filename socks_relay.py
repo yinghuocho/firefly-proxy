@@ -2,11 +2,13 @@
 import logging
 
 from gevent import socket
-from gevent import select
 
-from relay import RelayFactory, RelaySession, RelaySessionError, SocksSession
-from utils import *
-from msg import *
+from relay import RelayFactory, RelaySession, RelaySessionError
+from utils import pipe_tcp, bind_local_udp, request_fail, send_request, \
+sock_addr_info, read_reply, request_success, pipe_udp, read_init_request, \
+read_init_reply, read_request
+from msg import GENERAL_SOCKS_SERVER_FAILURE, UDP_ASSOCIATE, SUCCEEDED, \
+CONNECT, BIND
 
 log = logging.getLogger(__name__)
 
@@ -112,7 +114,7 @@ class SocksForwardFactory(RelayFactory):
             remoteconn = socket.create_connection((self.remoteip, self.remoteport), self.timeout)
             remoteconn.settimeout(self.timeout)
             return SocksForwardSession(socksconn, remoteconn)
-        except socket.timeout, e:
+        except socket.timeout, e:  # @UndefinedVariable
             log.error("[Exception][create_relay_session]: %s" % str(e))
             raise RelaySessionError("Remote Timeout.")
         

@@ -1,12 +1,15 @@
 # relay skeleton & normal socks relay
 import logging
-import sys
 import time
 
 from gevent import socket
+from gevent import select
 
-from utils import *
-from msg import *
+from utils import request_fail, basic_handshake_server, read_request, \
+sock_addr_info, request_success, pipe_tcp, bind_local_udp, addr_info, \
+bind_local_sock_by_addr, pipe_udp
+from msg import CMD_NOT_SUPPORTED, CONNECT, BIND, UDP_ASSOCIATE, \
+GENERAL_SOCKS_SERVER_FAILURE, UDPRequest
 
 log = logging.getLogger(__name__)
 
@@ -108,13 +111,13 @@ class SocksSession(RelaySession):
         while True:
             readable = select.select([self.socksconn, self.client2local_udpsock], [], [], timeout)
             if not readable:
-                raise socket.timeout("timeout")
+                raise socket.timeout("timeout")  # @UndefinedVariable
             if self.socksconn in readable:
                 raise RelaySessionError("unexcepted read-event from tcp socket in UDP session")    
         
             timeout -= (time.time() - start)
             if timeout <= 0:
-                raise socket.timeout("timeout")
+                raise socket.timeout("timeout")  # @UndefinedVariable
             data, addr = self.client2local_udpsock.recvfrom(65536)
             try:
                 udpreq = UDPRequest(data)

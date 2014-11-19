@@ -1,30 +1,20 @@
 # basic routinues
-import os
-import sys
 import struct
-from datetime import datetime
 
-from gevent import select
 from gevent import socket
+from gevent import select
 
-from msg import *
+import msg
 
 class ProtocolError(Exception): pass
 class FormatError(Exception): pass
 
-def resolve(name, af):
-    try:
-        addrinfos = socket.getaddrinfo(name, 0, af)
-        return addrinfos[0][5][1]
-    except:
-        return None
-
 def readaddr(sock, addrtype):
-    if addrtype == IP_V4:
+    if addrtype == msg.IP_V4:
         return sock.recv(4)
-    elif addrtype == IP_V6:
+    elif addrtype == msg.IP_V6:
         return sock.recv(16)
-    elif addrtype == DOMAIN_NAME:
+    elif addrtype == msg.DOMAIN_NAME:
         data1 = sock.recv(1)
         length = struct.unpack('B', data1)[0]
         data2 = sock.recv(length)
@@ -35,64 +25,64 @@ def readaddr(sock, addrtype):
 def read_init_request(sock):
     data1 = sock.recv(2)
     data2 = sock.recv(struct.unpack('B', data1[1])[0])
-    initreq = InitRequest(data1+data2)
-    if initreq.version != SOCKS5:
+    initreq = msg.InitRequest(data1+data2)
+    if initreq.version != msg.SOCKS5:
         raise ProtocolError("Unsupported version %s" % initreq.version.encode('hex'))
     return initreq
 
 def read_init_reply(sock):
     data = sock.recv(2)
-    initreply = InitReply(data)
+    initreply = msg.InitReply(data)
     return initreply
 
 def init_reply(sock, method):
-    sock.sendall(InitReply(method=method).pack())
+    sock.sendall(msg.InitReply(method=method).pack())
 
 def init_fail(sock):
-    init_reply(sock, NO_ACCEPTABLE_METHODS)
+    init_reply(sock, msg.NO_ACCEPTABLE_METHODS)
 
 def basic_handshake_client(sock):
-    sock.sendall(InitRequest().pack())
+    sock.sendall(msg.InitRequest().pack())
     initreply = read_init_reply(sock)
-    if initreply.method != NO_AUTHENTICATION_REQUIRED:
+    if initreply.method != msg.NO_AUTHENTICATION_REQUIRED:
         return False
     return True
 
 def basic_handshake_server(sock):
     initreq = read_init_request(sock)
-    if initreq.version != SOCKS5:
+    if initreq.version != msg.SOCKS5:
         return False
-    if NO_AUTHENTICATION_REQUIRED not in initreq.methods:
+    if msg.NO_AUTHENTICATION_REQUIRED not in initreq.methods:
         init_fail(sock)
         return False
     
-    init_reply(sock, NO_AUTHENTICATION_REQUIRED)
+    init_reply(sock, msg.NO_AUTHENTICATION_REQUIRED)
     return True
 
 def read_request(sock):
     data1 = sock.recv(4)
     data2 = readaddr(sock, data1[3])
     data3 = sock.recv(2)
-    req = Request(data1 + data2 + data3)
+    req = msg.Request(data1 + data2 + data3)
     return req
 
 def send_request(sock, cmd, addrtype, dstaddr, dstport):
-    sock.sendall(Request(cmd=cmd, addrtype=addrtype, dstaddr=dstaddr, dstport=dstport).pack())
+    sock.sendall(msg.Request(cmd=cmd, addrtype=addrtype, dstaddr=dstaddr, dstport=dstport).pack())
 
 def read_reply(sock):
     data1 = sock.recv(4)
     data2 = readaddr(sock, data1[3])
     data3 = sock.recv(2)
-    reply = Reply(data1 + data2 + data3)
+    reply = msg.Reply(data1 + data2 + data3)
     return reply
 
 def request_fail(sock, request, response):
-    reply = Reply(rep=response, addrtype=request.addrtype,
+    reply = msg.Reply(rep=response, addrtype=request.addrtype,
         bndaddr=request.dstaddr, bndport=request.dstport)
     sock.sendall(reply.pack())
     
 def request_success(sock, addrtype, bndaddr, bndport):
-    reply = Reply(addrtype=addrtype,
+    reply = msg.Reply(addrtype=addrtype,
         bndaddr=bndaddr, bndport=bndport)
     sock.sendall(reply.pack())
     
@@ -160,14 +150,14 @@ def pipe_udp(tcpsocks, csock, rsock, ctimeout, rtimeout,
                 
 def bind_local_udp(tcpsock):
     tcpaddr = tcpsock.getsockname()
-    addrinfo = socket.getaddrinfo(tcpaddr[0], 0, 0, socket.SOCK_DGRAM, socket.SOL_UDP)
+    addrinfo = socket.getaddrinfo(tcpaddr[0], 0, 0, socket.SOCK_DGRAM, socket.SOL_UDP)  # @UndefinedVariable
     af, socktype, proto, _, localaddr = addrinfo[0]
     udpsock = socket.socket(af, socktype, proto)
     udpsock.bind(localaddr)
     return udpsock
 
 def bind_local_sock_by_addr(addr):
-    addrinfo = socket.getaddrinfo(addr[0], addr[1], 0, socket.SOCK_DGRAM, socket.SOL_UDP)
+    addrinfo = socket.getaddrinfo(addr[0], addr[1], 0, socket.SOCK_DGRAM, socket.SOL_UDP)  # @UndefinedVariable
     af, socktype, proto, _, remoteaddr = addrinfo[0]
     sock = socket.socket(af, socktype, proto)
     sock.connect(remoteaddr)
@@ -176,31 +166,31 @@ def bind_local_sock_by_addr(addr):
 def sock_addr_info(sock):
     addr = sock.getsockname()
     if len(addr) == 4:
-        addrtype = IP_V6
+        addrtype = msg.IP_V6
     else:
-        addrtype = IP_V4
+        addrtype = msg.IP_V4
     return addrtype, addr[0], addr[1]
 
 def addr_info(addr):
     if len(addr) == 4:
-        addrtype = IP_V6
+        addrtype = msg.IP_V6
     else:
-        addrtype = IP_V4
+        addrtype = msg.IP_V4
     return addrtype, addr[0], addr[1]
 
 def addr_type(addr):
     try:
-        socket.inet_pton(socket.AF_INET, addr)
-        return IP_V4
+        socket.inet_pton(socket.AF_INET, addr)  # @UndefinedVariable
+        return msg.IP_V4
     except:
         pass
 
     try:
-        socket.inet_pton(socket.AF_INET6, addr)
-        return IP_V6
+        socket.inet_pton(socket.AF_INET6, addr)  # @UndefinedVariable
+        return msg.IP_V6
     except:
         pass
-    return DOMAIN_NAME
+    return msg.DOMAIN_NAME
     
 class SharedTimer(object):
     """ this timer can be shared by two greenlets

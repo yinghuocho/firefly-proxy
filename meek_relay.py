@@ -1,25 +1,27 @@
 # a relay forward local socks to a remote socks through meek (i.e., HTTP transport).
-import urllib
 import logging
 import uuid
 import random
-import time
 from collections import namedtuple
 
 import grequests
-import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
 
 import gevent
-from gevent import socket
 from gevent import select
 from gevent.queue import Queue
 from gevent.event import Event
 
 from relay import RelayFactory, RelaySession, RelaySessionError
-from utils import *
-from meek import *
+from msg import Reply, GENERAL_SOCKS_SERVER_FAILURE
+from meek import SESSION_ID_LENGTH, MAX_PAYLOAD_LENGTH, HEADER_SESSION_ID, \
+HEADER_UDP_PKTS, HEADER_MODE, HEADER_MSGTYPE, MSGTYPE_DATA, MODE_STREAM, \
+HEADER_ERROR, CLIENT_MAX_TRIES, CLIENT_RETRY_DELAY, CLIENT_INITIAL_POLL_INTERVAL, \
+CLIENT_POLL_INTERVAL_MULTIPLIER, CLIENT_MAX_POLL_INTERVAL, MSGTYPE_TERMINATE, \
+CLIENT_MAX_FAILURE
+from utils import SharedTimer, bind_local_udp, request_fail, request_success, \
+sock_addr_info
 
 log = logging.getLogger(__name__)
 
@@ -103,13 +105,13 @@ class MeekSession(RelaySession):
             headers[HEADER_UDP_PKTS] = lengths
     
         data = "".join(pkts)
-        for i in range(CLIENT_MAX_TRIES):
+        for _ in range(CLIENT_MAX_TRIES):
             try:
                 verify = "verify" in self.relay.properties
                 reqs = [grequests.post(self.relay.fronturl, data=data,
                     headers=headers, verify=verify, stream=stream, timeout=self.meektimeout, session=self.http_session)]
                 resp = grequests.map(reqs, stream=stream)[0]
-                if resp.status_code != requests.codes.ok:
+                if resp.status_code != requests.codes.ok:  # @UndefinedVariable
                     # meek server always give 200, so all non-200s mean external issues. 
                     continue
                 err = get_meek_meta(resp.headers, HEADER_ERROR)
@@ -131,7 +133,6 @@ class MeekSession(RelaySession):
         return [("", "Max Retry (%d) Exceeded" % CLIENT_MAX_TRIES)]
         
     def meek_sendrecv(self):
-        totalresp = []
         pkts = []
         datalen = 0
         while not self.l2m_queue.empty():

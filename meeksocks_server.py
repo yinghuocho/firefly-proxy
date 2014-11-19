@@ -4,22 +4,26 @@ import sys
 import os
 import time
 import getopt
-import signal
 from sys import platform as _platform
 if _platform == "linux" or _platform == "linux2":
     os.environ['GEVENT_RESOLVER'] = "ares"
 
 import gevent
-from gevent.pywsgi import WSGIServer
+from gevent import select
 from gevent import socket
+from gevent.pywsgi import WSGIServer
 from gevent.queue import Queue, Empty
 from gevent.event import Event
 
 from server import SocksServer
 from relay import SocksRelayFactory, RelaySessionError
-from meek import *
-from msg import *
-from utils  import *
+from meek import MAX_PAYLOAD_LENGTH, HEADER_SESSION_ID, HEADER_UDP_PKTS, \
+HEADER_MODE, HEADER_MSGTYPE, MSGTYPE_DATA, MODE_STREAM, HEADER_ERROR, \
+CLIENT_MAX_POLL_INTERVAL, MSGTYPE_TERMINATE, SERVER_TURNAROUND_TIMEOUT, \
+SERVER_TURNAROUND_MAX
+from utils import SharedTimer, read_init_reply, bind_local_udp, sock_addr_info, \
+read_reply
+from msg import InitRequest, Request, UDP_ASSOCIATE, CONNECT, BIND
 
 log = logging.getLogger(__name__)
 
@@ -127,7 +131,7 @@ class MeekSession(object):
         self.socksconn = socket.create_connection((self.socksip, self.socksport), self.timeout)
         self.allsocks = [self.socksconn]
         self.socksconn.sendall(InitRequest().pack())
-        reply = read_init_reply(self.socksconn)
+        read_init_reply(self.socksconn)
         self.status = SESSION_WAIT_REQUEST
         self.initialized = True
     
@@ -203,7 +207,7 @@ class MeekSession(object):
         return data, totalsize
         
     def fetch_resp(self):
-        data, totalsize = self._fetch_resp()
+        data, _ = self._fetch_resp()
         resp = "".join(data)
         headers = [
             (HEADER_SESSION_ID, self.sessionid),
@@ -349,7 +353,7 @@ def main():
     socksip = sys.argv[3]
     socksport = int(sys.argv[4])
     
-    opts, args = getopt.gnu_getopt(sys.argv[5:], "hdp:l:",
+    opts, _ = getopt.gnu_getopt(sys.argv[5:], "hdp:l:",
                             ["help", "debug", "pidfile=", "logfile="])
     for o, a in opts:
         if o == "-h" or o == "--help":
