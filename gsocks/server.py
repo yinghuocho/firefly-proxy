@@ -1,6 +1,5 @@
 # socks5 frontend
 import logging
-import sys
 
 from gevent import socket
 from gevent.server import StreamServer
@@ -15,8 +14,8 @@ class SocksServer(object):
         self.timeout = timeout
         self.relayfactory = relayfactory
         self.pool = Pool(maxclient)
-        addrinfo = socket.getaddrinfo(ip, port, 0, socket.SOCK_STREAM, socket.SOL_TCP)
-        af, socktype, proto, _, localaddr = addrinfo[0]
+        addrinfo = socket.getaddrinfo(ip, port, 0, socket.SOCK_STREAM, socket.SOL_TCP)  # @UndefinedVariable
+        _, _, _, _, localaddr = addrinfo[0]
         self.server = StreamServer(localaddr, self._handle, spawn=self.pool)
         
     def _handle(self, sock, addr):
