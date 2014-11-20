@@ -8,7 +8,7 @@
 ;--------------------------------
 
 ; The name of the installer
-Name "Ó©»ğ³æ·­Ç½´úÀí"
+Name "è¤ç«è™«ç¿»å¢™ä»£ç†"
 
 ; The file to write
 OutFile "firefly-proxy-win-0.1.3-install.exe"
@@ -32,7 +32,7 @@ UninstPage instfiles
 ;--------------------------------
 
 ; The stuff to install
-Section "Ó©»ğ³æ·­Ç½´úÀí"
+Section "è¤ç«è™«ç¿»å¢™ä»£ç†"
 
   SectionIn RO
   
@@ -47,17 +47,17 @@ Section "Ó©»ğ³æ·­Ç½´úÀí"
 SectionEnd
 
 ; Optional section (can be disabled by the user)
-Section "¿ªÊ¼²Ëµ¥"
+Section "å¼€å§‹èœå•"
 
   CreateDirectory "$SMPROGRAMS\Firefly"
   CreateShortcut "$SMPROGRAMS\Firefly\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
-  CreateShortcut "$SMPROGRAMS\Firefly\Ó©»ğ³æ·­Ç½´úÀí.lnk" "$INSTDIR\firefly.exe"
+  CreateShortcut "$SMPROGRAMS\Firefly\è¤ç«è™«ç¿»å¢™ä»£ç†.lnk" "$INSTDIR\firefly.exe"
   
 SectionEnd
 
-Section "¿ì½İ·½Ê½"
+Section "å¿«æ·æ–¹å¼"
 
-  CreateShortcut "$DESKTOP\Ó©»ğ³æ·­Ç½´úÀí.lnk" "$INSTDIR\firefly.exe"
+  CreateShortcut "$DESKTOP\è¤ç«è™«ç¿»å¢™ä»£ç†.lnk" "$INSTDIR\firefly.exe"
   
 SectionEnd
 
@@ -72,7 +72,7 @@ Section "Uninstall"
 
   ; Remove shortcuts, if any
   Delete "$SMPROGRAMS\Firefly\*.*"
-  Delete "$DESKTOP\Ó©»ğ³æ·­Ç½´úÀí.lnk"
+  Delete "$DESKTOP\è¤ç«è™«ç¿»å¢™ä»£ç†.lnk"
 
   ; Remove directories used
   RMDir /r "$SMPROGRAMS\Firefly"
