@@ -150,7 +150,7 @@ class Browser(IPC_Host):
             addrs[SOCKS5] = self.hub_ref.IPC_socks_proxy_addr()
         
         browsers = []
-        for (name, executable, default, out_dated) in iterate_browsers():
+        for (name, executable, default, _) in iterate_browsers():
             for k in implemented.keys():
                 if k in name.lower():
                     priority, types, (launch_func, launch_tab_func) = implemented[k] 

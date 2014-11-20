@@ -1,9 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import os
 import json
-import codecs
 
 import web
 from web.contrib.template import render_mako
@@ -68,6 +66,7 @@ def update_config(update, reboot=True, ipc=True):
         resp = {'message': u'配置修改成功'}
         return json.dumps(resp)
     except Exception, e:
+        print str(e)
         status = '500 Internal Server Error'
         headers = {'Content-Type': 'application/json'}
         resp = json.dumps([{'message': u'系统错误'}])
@@ -131,6 +130,7 @@ class localproxy_settings:
             update['socks_proxy_ip'] = data.get('socks_proxy_ip')
             update['socks_proxy_port'] = int(data.get('socks_proxy_port'))
         except Exception, e:
+            print str(e)
             status = '400 Bad Request'
             headers = {'Content-Type': 'application/json'}
             resp = json.dumps([{'message': u'数据格式错误'}])
@@ -196,6 +196,7 @@ class circumvention_settings:
             
             update['circumvention_chan_shadowsocks'] = shadowsocks_config
         except Exception, e:
+            print str(e)
             status = '400 Bad Request'
             headers = {'Content-Type': 'application/json'}
             resp = json.dumps([{'message': u'数据格式错误'}])

@@ -129,7 +129,7 @@ def launch_ie(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, defaul
         'ProxyOverride' : (1, u'*.local;<local>'),
         'ProxyServer'   : (1, u'%s:%d' % (proxy_ip, proxy_port)),
     }
-    for (name, value) in new_values.items():
+    for (name, _) in new_values.items():
         (reg_value, reg_type) = read_reg_key(key, subkey, name)
         if reg_value is not None:        
             old_ie_settings[name] = (reg_type, reg_value)

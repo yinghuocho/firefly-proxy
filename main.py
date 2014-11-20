@@ -4,7 +4,6 @@ import json
 import codecs
 import shutil
 import hashlib
-import time
 import multiprocessing
 from datetime import datetime, date
 if getattr(sys, 'frozen', False):

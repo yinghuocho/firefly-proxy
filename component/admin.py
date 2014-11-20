@@ -1,5 +1,4 @@
 import os
-from multiprocessing import Process
 
 from gevent import socket
 from gevent.pywsgi import WSGIServer
@@ -28,7 +27,7 @@ class Webadmin(IPC_Process):
         from webui import app
         try:
             WSGIServer((self.ip, self.port), application=app.create_app(self.hub_ref), log=None).serve_forever()
-        except socket.error, e:
+        except socket.error, e:  # @UndefinedVariable
             print "failed to start web admin: %s, change port then try again" % str(e)
             self.port = idle_port()
             WSGIServer((self.ip, self.port), application=app.create_app(self.hub_ref), log=None).serve_forever()

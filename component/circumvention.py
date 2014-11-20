@@ -68,21 +68,21 @@ class MeekChannel(IPC_Process):
         self.process = None
         
     def _test_relay(self, relay, result):
-         # We don't want go to system proxies.
+        # We don't want go to system proxies.
         s = requests.Session()
         s.trust_env = False
         verify = "verify" in relay.properties
         stream = "stream" in relay.properties
         headers = {"Host": relay.hostname}
-        for i in range(2):
+        for _ in range(2):
             try:
                 reqs = [grequests.get(relay.fronturl, headers=headers,
                     verify=verify, stream=stream, timeout=5, session=s)]
                 resp = grequests.map(reqs, stream=stream)[0]
-                if resp.status_code == requests.codes.ok:
+                if resp.status_code == requests.codes.ok:  # @UndefinedVariable
                     result.append(relay)
                     return
-            except Exception, e:
+            except:
                 pass
         print "meek relay (%s,%s) is not valid" % (relay.fronturl, relay.hostname)
         

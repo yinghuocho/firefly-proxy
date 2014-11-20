@@ -25,8 +25,6 @@ def open_log(logfile):
     ch = logging.FileHandler(logfile)
     ch.setFormatter(logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'))
     logger.addHandler(ch)
-    
-    from lib.utils import LoggerWriter
     sys.stdout = LoggerWriter(logger, logging.INFO)
     sys.stderr = LoggerWriter(logger, logging.INFO)
     

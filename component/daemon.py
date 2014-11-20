@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import webbrowser
-from multiprocessing import Process
 
 from lib.systray import SysTrayIcon
 from lib.ipc import IPC_Process
