@@ -3,10 +3,8 @@ import urlparse
 from httplib import HTTPConnection
 
 from gevent import socket
-from gevent.pywsgi import WSGIServer
-from gevent.pool import Pool
 
-from server import HTTPProxyServer, ProxyHandler, ProxyApplication, \
+from server import HTTPProxyServer, ProxyApplication, \
 copy_request, CHUNKSIZE, get_destination, set_forwarded_for
 from gsocks import utils as socksutils
 from gsocks import msg as socksmsg

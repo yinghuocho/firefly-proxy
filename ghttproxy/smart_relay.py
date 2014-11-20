@@ -2,7 +2,7 @@ import logging
 import urlparse
 import re
 
-from server import HTTPProxyServer, ProxyHandler, ProxyApplication, get_destination
+from server import HTTPProxyServer, ProxyApplication, get_destination
 from socks_relay import HTTP2SocksProxyApplication
 from gsocks.match import ForwardMatch
 

@@ -21,7 +21,7 @@ def pipe_socket(client, remote):
                 if not data:
                     break
                 b.sendall(data)
-            except Exception as ex:
+            except:
                 break
         finish.set()
         
@@ -69,7 +69,7 @@ class ProxyHandler(WSGIHandler):
                     finally:
                         self.socket._sock.close()  
                         self.socket.close()
-                except socket.error:
+                except socket.error:  # @UndefinedVariable
                     pass
             self.__dict__.pop('socket', None)
             self.__dict__.pop('rfile', None)
@@ -216,7 +216,7 @@ class ProxyApplication(object):
             environ['HTTPS_CONN'] = https_conn
             start_response("200 Connection established", [])
             return []
-        except socket.timeout:
+        except socket.timeout:  # @UndefinedVariable
             log.error("Connection Timeout")
             start_response("504 Gateway Timeout", [("Content-Type", "text/plain; charset=utf-8")])
             return ["Gateway Timeout"]
