@@ -1,32 +1,41 @@
 import logging
-import urlparse
+from urlparse import urlparse
 import re
 
 from server import HTTPProxyServer, ProxyApplication, get_destination
 from socks_relay import HTTP2SocksProxyApplication
-from gsocks.match import ForwardMatch
+from gsocks.smart_relay import RESocksMatcher, ForwardScheme
 
 log = logging.getLogger(__name__)
-    
-class HTTPForwardRegexMatch(ForwardMatch):
-    def __init__(self, rules):
-        self.rules = rules
-        
-    def find(self, host, port, proto="tcp"):
-        for (pattern, forward) in self.rules.iteritems():
-            (h, p) = pattern
-            if re.match(h, host.rstrip(".")) and re.match(p, str(port)):
-                log.info("forward %s found for %s:%d" % (forward, host, port))
-                return forward
-        return None
 
 class HTTP2SocksSmartApplication(ProxyApplication):
-    def __init__(self, match, timeout=60):
-        self.match = match
+    def __init__(self, matcher, timeout=60):
+        self.matcher = matcher
         self.timeout = timeout
+        self.forwarders = {}
+        self.register_forwarder("socks5", self.forward_socks5)
         
-    def set_match(self, match):
-        self.match = match
+    def set_matcher(self, matcher):
+        self.matcher = matcher
+        
+    def register_forwarder(self, scheme_name, forwarder):
+        self.forwarders[scheme_name] = forwarder
+        
+    def find_forwarder(self, scheme_name):
+        return self.forwarders.get(scheme_name, None)
+        
+    def forward_socks5(self, url, host, port, environ, start_response):
+        app = HTTP2SocksProxyApplication(url.hostname, int(url.port))
+        return app.application(environ, start_response)
+        
+    def forward(self, scheme, host, port, environ, start_response):
+        forwarder = self.find_forwarder(scheme.name)
+        if forwarder:
+            return forwarder(scheme.data, host, port, environ, start_response)
+        else:
+            log.error("Unsupported forwarding scheme %s" % scheme.name)
+            start_response("500 Internal Server Error", [("Content-Type", "text/plain; charset=utf-8")])
+            return ["Internal Server Error"]
         
     def application(self, environ, start_response):
         try:
@@ -37,16 +46,11 @@ class HTTP2SocksSmartApplication(ProxyApplication):
             return ["Bad Request"]
         
         try:
-            dst = self.match.find(host, port)
-            if not dst:
+            scheme = self.matcher.find(host, port)
+            if not scheme:
                 return super(HTTP2SocksSmartApplication, self).application(environ, start_response)
-            if dst.scheme != 'socks5':
-                log.error("Unsupported forwarding scheme %s" % dst.scheme)
-                start_response("500 Internal Server Error", [("Content-Type", "text/plain; charset=utf-8")])
-                return ["Internal Server Error"]
             else:
-                app = HTTP2SocksProxyApplication(dst.hostname, int(dst.port))
-                return app.application(environ, start_response)
+                return self.forward(scheme, host, port, environ, start_response) 
         except Exception, e:
             log.error("[Exception][application]: %s" % str(e))
             start_response("500 Internal Server Error", [("Content-Type", "text/plain; charset=utf-8")])
@@ -58,11 +62,11 @@ if __name__ == '__main__':
         datefmt='%Y-%d-%m %H:%M:%S',
         level=logging.DEBUG, 
     )
+    scheme = ForwardScheme("socks5", urlparse('socks5://127.0.0.1:1080/'))
     rules = {
-        (re.compile(r'.*\.whereisip\.net$'), re.compile(r'.*')): urlparse.urlparse('socks5://127.0.0.1:1080/'),
-        (re.compile(r'.*google\.com$'), re.compile(r'.*')): urlparse.urlparse('socks5://127.0.0.1:1080/'),
+        (re.compile(r'.*\.whereisip\.net$'), re.compile(r'.*'), re.compile(r'.*')): scheme,
+        (re.compile(r'.*google\.com$'), re.compile(r'.*'), re.compile(r'.*')): scheme,
     }
-    match = HTTPForwardRegexMatch(rules)
-    HTTPProxyServer("127.0.0.1", 8000,
-        HTTP2SocksSmartApplication(match)).run()     
+    matcher = RESocksMatcher(rules)
+    HTTPProxyServer("127.0.0.1", 8000, HTTP2SocksSmartApplication(matcher)).run()     
         
