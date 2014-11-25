@@ -1,6 +1,0 @@
-a gevent based HTTP/HTTPS proxy with SOCKS5 forwarding.
-
-dependencies
-============
-	* gevent
-	* gsocks (for SOCKS5 forwarding)

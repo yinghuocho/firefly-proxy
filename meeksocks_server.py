@@ -252,6 +252,8 @@ class MeekSession(object):
         for sock in self.allsocks:
             sock.close()
             
+        self.in_queue.queue.clear()
+        self.out_queue.queue.clear()
         if self.sessionid in self.sessionmap:
             del self.sessionmap[self.sessionid]
             log.info("%s: quit, %d sessions left" % (self.sessionid, len(self.sessionmap.keys())))
