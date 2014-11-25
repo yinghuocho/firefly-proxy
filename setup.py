@@ -6,7 +6,7 @@ build_exe_options = {
 	"packages": ["os"], 
 	"excludes": ["tkinter"],
 	"include_files": [
-		("F:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\redist\\x86\\Microsoft.VC90.CRT\\", "."), 
+		("C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\redist\\x86\\Microsoft.VC90.CRT\\", "."), 
 		"config.json",
 		"firefly-blacklist.txt",
 		"firefly-blacklist.meta.json",
