@@ -1,5 +1,6 @@
 # a relay with policy based forwarding.
 import logging
+import re
 
 from gevent import socket
 
@@ -11,16 +12,50 @@ import utils
 
 log = logging.getLogger(__name__)
 
+class ForwardScheme(object):
+    def __init__(self, name, data):
+        self.name = name
+        self.data = data
+    
+    def __repr__(self):
+        return "<%s:%r>" % (self.name, self.data)
+
+class ForwardMatcher(object):
+    def find(self, host, port, proto="tcp"):
+        # return a list of ForwardScheme objects
+        return None
+    
+class RESocksMatcher(ForwardMatcher):
+    def __init__(self, rules):
+        self.rules = rules
+        
+    def find(self, host, port, proto="tcp"):
+        for (pattern, scheme) in self.rules.iteritems():
+            (h, p, pr) = pattern
+            if re.match(pr, proto) and re.match(h, host.rstrip(".")) \
+                        and re.match(p, str(port)):
+                log.info("forward rule %s found for %s:%d:%s" % (scheme, host, port, proto))
+                return scheme
+        return None
+
 class SmartRelayError(Exception): pass
 
 class SmartRelaySession(RelaySession):
-    def __init__(self, socksconn, timeout, match):
+    def __init__(self, socksconn, timeout, matcher):
         super(SmartRelaySession, self).__init__(socksconn)
-        
-        self.match = match
+        self.forwarders = {}
+        self.matcher = matcher
         self.handler = None
+        self.register_forwarder("socks5", "tcp", self.forward_socks5_tcp)
+        self.register_forwarder("socks5", "udp", self.forward_socks5_udp)
         
-    def forward_handshake(self, socksconn):
+    def register_forwarder(self, scheme_name, proto, forwarder):
+        self.forwarders["_".join([scheme_name, proto])] = forwarder
+        
+    def find_forwarder(self, scheme_name, proto):
+        return self.forwarders.get("_".join([scheme_name, proto]), None)
+        
+    def forward_socks5_handshake(self, socksconn):
         initreq = msg.InitRequest()
         socksconn.sendall(initreq.pack())
         initreply = utils.read_init_reply(socksconn)
@@ -28,84 +63,94 @@ class SmartRelaySession(RelaySession):
             return False
         return True
         
-    def smart_socks_tcp( self, forwardurl, req):
-        remoteconn = socket.create_connection((forwardurl.hostname, forwardurl.port), self.timeout)
+    def forward_socks5_tcp(self, url, req):
+        remoteconn = socket.create_connection((url.hostname, url.port), self.timeout)
         remoteconn.settimeout(self.timeout)
         handler = SocksForwardSession(self.socksconn, remoteconn)
         self.handler = handler
-        
         # handshake, send request, then start to pipe
-        if self.forward_handshake(handler.remoteconn):
+        if self.forward_socks5_handshake(handler.remoteconn):
             handler.proc_tcp_request(req)
             handler.relay_tcp()
+        return True
             
-    def cmd_connect(self, req):
-        url = self.match.find(req.dstaddr, req.dstport, proto="tcp")
-        if not url:
-            # no rule found, go as local socks proxy 
-            handler = SocksSession(self.socksconn)
-            self.handler = handler
-            handler.proc_tcp_request(req)
-            handler.relay_tcp()
-        else:
-            if url.scheme != 'socks5':
-                raise SmartRelayError("forward url %s not supported" % str(url))
-            self.smart_socks_tcp(url, req)
-        
-    def smart_socks_udp(self, forwardurl, local_handler, firstdata, firstaddr):
-        remoteconn = socket.create_connection((forwardurl.hostname, forwardurl.port), self.timeout)
+    def forward_socks5_udp(self, url, localhandler, firstdata, firstaddr):
+        remoteconn = socket.create_connection((url.hostname, url.port), self.timeout)
         remoteconn.settimeout(self.timeout)
         handler = SocksForwardSession(self.socksconn, remoteconn)
-
-        # copy already-exist states from previous handler
-        handler.client_associate = local_handler.client_associate
-        handler.last_clientaddr = local_handler.last_clientaddr
-        handler.client2local_udpsock = local_handler.client2local_udpsock
+        # copy already-exist states from local handler
+        handler.client_associate = localhandler.client_associate
+        handler.last_clientaddr = localhandler.last_clientaddr
+        handler.client2local_udpsock = localhandler.client2local_udpsock
         handler.track_sock(handler.client2local_udpsock)
         self.handler = handler
         
         # handshake, then request-reply, then send first packet, finally start to pipe
-        if self.forward_handshake(handler.remoteconn):
+        if self.forward_socks5_handshake(handler.remoteconn):
             handler.local2remote_udpsock = utils.bind_local_udp(handler.remoteconn)
             handler.track_sock(handler.local2remote_udpsock)
             utils.send_request(handler.remoteconn, msg.UDP_ASSOCIATE, *utils.sock_addr_info(handler.local2remote_udpsock))
             reply = utils.read_reply(handler.remoteconn)
             if reply.rep != msg.SUCCEEDED:
-                return           
+                return False           
             handler.remote_associate = (reply.bndaddr, reply.bndport)
             handler.last_clientaddr = firstaddr
             handler.local2remote_udpsock.sendto(firstdata, handler.remote_associate)
-            handler.relay_udp() 
-        
-    def cmd_udp_associate(self, req):
-        local_handler = SocksSession(self.socksconn)
-        self.handler = local_handler
-        if local_handler.proc_udp_request(req):
-            # a UDP session is determined by first UDP packet
-            firstdata, firstaddr = local_handler.wait_for_first_udp()
-            url = self.match.find(firstaddr[0], firstaddr[1], proto="udp")
-            if not url:
-                # no rule found, go as local socks proxy 
-                local_handler.relay_udp(firstdata, firstaddr)    
-            else:
-                if url.scheme != 'socks5':
-                    raise SmartRelayError("forward url %s not supported" % str(url))            
-                self.smart_socks_udp(url, local_handler, firstdata, firstaddr)
+            handler.relay_udp()
+        return True
+    
+    def forward_tcp(self, scheme, req):
+        forwarder = self.find_forwarder(scheme.name, "tcp")
+        if forwarder:
+            forwarder(scheme.data, req)
+        else:            
+            raise SmartRelayError("forward scheme %s not supported" % scheme.name)
             
+    def forward_udp(self, scheme, localhandler, firstdata, firstaddr):
+        forwarder = self.find_forwarder(scheme.name, "udp")
+        if forwarder:
+            forwarder(scheme.data, localhandler, firstdata, firstaddr)
+        else:            
+            raise SmartRelayError("forward scheme %s not supported" % scheme.name)
+            
+    def cmd_connect(self, req):
+        scheme = self.matcher.find(req.dstaddr, req.dstport, proto="tcp")
+        if not scheme:
+            # no forward schemes found, go as local socks proxy 
+            handler = SocksSession(self.socksconn)
+            self.handler = handler
+            handler.proc_tcp_request(req)
+            handler.relay_tcp()
+        else:
+            self.forward_tcp(scheme, req)
+            
+    def cmd_udp_associate(self, req):
+        handler = SocksSession(self.socksconn)
+        self.handler = handler
+        if handler.proc_udp_request(req):
+            # a UDP session is determined by first UDP packet
+            firstdata, firstaddr = handler.wait_for_first_udp()
+            scheme = self.matcher.find(firstaddr[0], firstaddr[1], proto="udp")
+            if not scheme:
+                # no forward schemes found, go as local socks proxy 
+                handler.relay_udp(firstdata, firstaddr)    
+            else:
+                self.forward_udp(scheme, handler, firstdata, firstaddr)
+                    
     def clean(self):
         super(SmartRelaySession, self).clean()
         if self.handler:
             self.handler.clean()
 
 class SmartRelayFactory(RelayFactory):
-    def __init__(self, match, timeout=30):
-        self.match = match
+    def __init__(self, matcher, timeout=30):
+        self.matcher = matcher
         self.timeout = timeout
         
-    def set_match(self, match):
-        self.match = match
+    def set_matcher(self, matcher):
+        self.matcher = matcher
         
     def create_relay_session(self, socksconn, clientaddr):
-        return SmartRelaySession(socksconn, self.timeout, self.match)
+        return SmartRelaySession(socksconn, self.timeout, self.matcher)
     
     

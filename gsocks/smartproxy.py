@@ -8,8 +8,7 @@ from sys import platform as _platform
 if _platform == "linux" or _platform == "linux2":
     os.environ['GEVENT_RESOLVER'] = "ares"
 
-from smart_relay import SmartRelayFactory
-from match import SocksForwardRegexMatch
+from smart_relay import SmartRelayFactory, RESocksMatcher, ForwardScheme
 from server import SocksServer
 
 def usage(f):
@@ -31,12 +30,13 @@ def main():
     localip = sys.argv[1]
     localport = int(sys.argv[2])
     
+    scheme = ForwardScheme("socks5", urlparse('socks5://127.0.0.1:1080/'))
     rules = {
-        (re.compile(r'.*\.whereisip\.net$'), re.compile(r'.*'), re.compile(r'.*')): urlparse('socks5://127.0.0.1:1080/'),
-        (re.compile(r'.*\.google\.com$'), re.compile(r'.*'), re.compile(r'.*')): urlparse('socks5://127.0.0.1:1080/'),
+        (re.compile(r'.*\.whereisip\.net$'), re.compile(r'.*'), re.compile(r'.*')): scheme,
+        (re.compile(r'.*\.google\.com$'), re.compile(r'.*'), re.compile(r'.*')): scheme,
     }
-    match = SocksForwardRegexMatch(rules)
-    relay = SmartRelayFactory(match)
+    matcher = RESocksMatcher(rules)
+    relay = SmartRelayFactory(matcher)
     socks = SocksServer(localip, localport, relay)
     socks.run()
 
