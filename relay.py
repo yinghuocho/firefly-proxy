@@ -109,7 +109,7 @@ class SocksSession(RelaySession):
         start = time.time()
         timeout = self.timeout
         while True:
-            readable = select.select([self.socksconn, self.client2local_udpsock], [], [], timeout)
+            readable, _, _ = select.select([self.socksconn, self.client2local_udpsock], [], [], timeout)
             if not readable:
                 raise socket.timeout("timeout")  # @UndefinedVariable
             if self.socksconn in readable:
