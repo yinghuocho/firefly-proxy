@@ -19,12 +19,13 @@ class LoggerWriter:
         if message != '\n':
             self.logger.log(self.level, message)
             
-def open_log(logfile):
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    ch = logging.FileHandler(logfile)
-    ch.setFormatter(logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'))
-    logger.addHandler(ch)
-    sys.stdout = LoggerWriter(logger, logging.INFO)
-    sys.stderr = LoggerWriter(logger, logging.INFO)
+def init_logging():
+    if len(sys.argv)>1 and sys.argv[1] == "--debug":
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        ch = logging.FileHandler("firefly.log")
+        ch.setFormatter(logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'))
+        logger.addHandler(ch)
+        sys.stdout = LoggerWriter(logger, logging.DEBUG)
+        sys.stderr = LoggerWriter(logger, logging.DEBUG)
     

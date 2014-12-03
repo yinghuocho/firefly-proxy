@@ -11,6 +11,7 @@ from shadowsocks import encrypt, asyncdns, eventloop, tcprelay, udprelay
 from gsocks.meek_relay import Relay, MeekRelayFactory
 from gsocks.server import SocksServer
 from lib.ipc import IPC_Host, IPC_Process
+from lib.utils import init_logging
 
 class ShadowSocksChannel(IPC_Process):
     def __init__(self, hub_ref):
@@ -19,6 +20,7 @@ class ShadowSocksChannel(IPC_Process):
         self.process = None
         
     def run(self):
+        init_logging()
         confdata = self.hub_ref.get('confdata')
         proxy_ip = confdata['circumvention_proxy_ip']
         proxy_port = confdata['circumvention_proxy_port']
@@ -103,6 +105,7 @@ class MeekChannel(IPC_Process):
         return valid_relays
         
     def run(self):
+        init_logging()
         confdata = self.hub_ref.get('confdata')
         proxy_ip = confdata['circumvention_proxy_ip']
         proxy_port = confdata['circumvention_proxy_port']

@@ -4,7 +4,7 @@ from gevent import socket
 from gevent.pywsgi import WSGIServer
 
 from lib.ipc import IPC_Process
-from lib.utils import idle_port
+from lib.utils import idle_port, init_logging
 
 class Webadmin(IPC_Process):
     def __init__(self, hub_ref):
@@ -19,6 +19,7 @@ class Webadmin(IPC_Process):
         return "http://%s:%d/about" % (self.ip, self.port)
     
     def run(self):
+        init_logging()
         rootdir = self.hub_ref.get('rootdir')
         confdata = self.hub_ref.get('confdata')
         webpath = os.path.join(rootdir, confdata['web_path'])

@@ -12,6 +12,7 @@ urls = (
     '/about', 'about',
     '/proxy', 'proxy',
     '/blacklist', 'blacklist',
+    '/hosts', 'hosts',
     
     '/proxy/settings/default', 'default_settings',
     '/proxy/settings/local', 'localproxy_settings',
@@ -21,6 +22,9 @@ urls = (
     '/blacklist/bl', 'bl',
     '/blacklist/custom_bl', 'custom_bl',
     '/blacklist/custom_wl', 'custom_wl',
+    
+    '/hosts/data', 'hosts_data',
+    '/hosts/group', 'hosts_group',
 )
 
 render = render_mako(
@@ -108,6 +112,18 @@ class blacklist:
             bl_date=bl_date,
             custom_bl=u"\n".join(custom_bl),
             custom_wl=u"\n".join(custom_wl),
+        )
+        
+class hosts:
+    def GET(self):
+        global hub_ref, need_reboot
+        
+        (_, domain_count, hosts_date) = hub_ref.IPC_hosts_info()
+        groups = hub_ref.IPC_hosts_groups()
+        return render.hosts(
+            domain_count=domain_count,
+            groups=groups,
+            hosts_date=hosts_date,
         )
     
 class localproxy_settings:
@@ -257,7 +273,49 @@ class custom_wl:
             headers = {'Content-Type': 'application/json'}
             resp = json.dumps([{'message': u'系统错误'}])
             raise web.HTTPError(status, headers, unicode(resp))
+        
+class hosts_data:
+    def GET(self):
+        global hub_ref
+        
+        web.header("Content-Type", "text/plain; charset=utf-8")
+        return open(hub_ref.IPC_hosts_info()[0])
     
+    def POST(self):
+        global hub_ref
+        
+        if hub_ref.IPC_update_hosts():
+            web.header('Content-Type', 'application/json')
+            resp = {'message': u'Host 文件更新成功，已生效'}
+            return json.dumps(resp)
+        else:
+            status = '500 Internal Server Error'
+            headers = {'Content-Type': 'application/json'}
+            resp = json.dumps([{'message': u'系统错误'}])
+            raise web.HTTPError(status, headers, unicode(resp))
+        
+class hosts_group:
+    def POST(self):
+        global hub_ref
+        
+        try:
+            groups = [g[0] for g in hub_ref.IPC_hosts_groups()]
+            disabled = groups
+            data = web.input()
+            for k in data.keys():
+                if k in groups:
+                    disabled.remove(k)
+            hub_ref.IPC_update_hosts_disabled(disabled)
+            web.header('Content-Type', 'application/json')
+            resp = {'message': u'Host 配置更新成功，已生效'}
+            return json.dumps(resp)
+        except:
+            status = '500 Internal Server Error'
+            headers = {'Content-Type': 'application/json'}
+            resp = json.dumps([{'message': u'系统错误'}])
+            raise web.HTTPError(status, headers, unicode(resp))
+               
+               
 def create_app(ref):
     global hub_ref
     hub_ref = ref

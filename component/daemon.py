@@ -5,6 +5,7 @@ import os
 
 from lib.systray import SysTrayIcon
 from lib.ipc import IPC_Process
+from lib.utils import init_logging
 
 class Daemon(IPC_Process):
     def __init__(self, hub_ref):
@@ -21,6 +22,7 @@ class Daemon(IPC_Process):
         self.hub_ref.IPC_open_admin_url()
     
     def run(self):
+        init_logging()
         rootdir = self.hub_ref.get('rootdir')
         confdata = self.hub_ref.get('confdata')
         SysTrayIcon(

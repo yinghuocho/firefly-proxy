@@ -5,6 +5,10 @@
     "blacklist_url": "https://raw.githubusercontent.com/yinghuocho/firefly-blacklist/master/firefly-blacklist.txt",
     "circumvention_chan_meek": {
         "relays": [
+            "https://194.78.99.24/,firefly-relay-1.appspot.com,stream",
+            "https://212.188.7.246/,firefly-relay-1.appspot.com,stream",
+            "https://a0.awsstatic.com/,dswpv736infni.cloudfront.net,stream",
+            "https://ajax.aspnetcdn.com/,az672578.vo.msecnd.net,stream"
         ]
     },
     "circumvention_chan_shadowsocks": {

@@ -1,0 +1,103 @@
+{
+    "sha1": "93401bbd7e147ce7ee058ad5ee15e170497da6e6",
+    "date": "2014-12-02",
+    "groups": {
+        "Google": [
+            "google.com",
+            "googleapis.com",
+            "google.com",
+            "googleapis.com",
+            "googlehosted.com",
+            "googlezip.net",
+            "googleusercontent.com",
+            "ggpht.com",
+            "gstatic.com",
+            "www.gwtproject.org",
+            "googlesource.com",
+            "android.com",
+            "googlecode.com",
+            "g.cn",
+            "google.cn",
+            "gstatic.cn",
+            "google.com.hk",
+            "google.com.tw",
+            "google.com.sg",
+            "google.co.jp",
+            "google.com.co.jp",
+            "g.co",
+            "chrome.com",
+            "keyhole.com",
+            "chrome.angrybirds.com",
+            "googlesyndication.com",
+            "googlelabs.com",
+            "gmail.com",
+            "gooleadservices.com",
+            "google-analytics.com",
+            "panoramio.com",
+            "webmproject.org",
+            "golang.org",
+            "gwtproject.org"
+        ],
+        "Youtube": [
+            "youtube.com",
+            "youtu.be",
+            "youtube-nocookie.com",
+            "ytimg.com",
+            "googlevideo.com",
+            "s0-2mdn-net.l.google.com",
+            "youtube-ui.l.google.com"
+        ],
+        "Twitter": [
+            "twitter.com",
+            "t.co",
+            "tweetdeck.com",
+            "twimg.com",
+            "tinypic.com",
+            "twitpic.com"
+        ],
+        "Facebook": [
+            "facebook.com",
+            "fbcdn.net",
+            "tfbnw.net",
+            "fbcdn-profile-a.akamaihd.net"
+        ],
+        "Wikipedia": [
+            "wikipedia.org",
+            "mediawiki.org",
+            "wikidata.org",
+            "wikibooks.org",
+            "wikimedia.org",
+            "wikimediafoundation.org",
+            "wikinews.org",
+            "wikiquote.org",
+            "wikisource.org",
+            "wikiversity.org",
+            "wikivoyage.org",
+            "wiktionary.org"
+        ],
+        "Flickr": [
+            "flickr.com"
+        ],
+        "live.com": [
+            "live.com"
+        ],
+        "box.com": [
+            "box.com"
+        ],
+        "igmur.com": [
+            "imgur.com"
+        ],
+        "duckduckgo.com": [
+            "duckduckgo.com"
+        ],
+        "ixquick.com": [
+            "ixquick.com"
+        ],
+        "startpage.com": [
+            "startpage.com"
+        ],
+        "Feedly": [
+            "feedly.com"
+        ]
+    }
+}
