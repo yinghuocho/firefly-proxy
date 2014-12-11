@@ -1,7 +1,10 @@
+import logging
 import fnmatch
 import codecs
 import urlparse
 from httplib import HTTPConnection
+import mimetools
+from StringIO import StringIO
 
 from gevent import socket
 
@@ -10,10 +13,12 @@ from gsocks.server import SocksServer
 from gsocks.utils import request_success, sock_addr_info, pipe_tcp
 from gsocks.msg import UDPRequest, IP_V4
 from ghttproxy.smart_relay import HTTP2SocksSmartApplication
-from ghttproxy.server import HTTPProxyServer, copy_request, get_destination, set_forwarded_for, CHUNKSIZE
+from ghttproxy.server import HTTPProxyServer, copy_request, set_forwarded_for, CHUNKSIZE
 
 from lib.ipc import IPC_Process
 from lib.utils import init_logging
+
+log = logging.getLogger(__name__)
 
 class FireflyHosts(object):
     def __init__(self, hosts_entries, groups, disabled_groups):
@@ -34,11 +39,24 @@ class FireflyHosts(object):
             
     def disable(self, groupname):
         self.disabled.add(groupname)
+        
+    def need_redirect(self, method, host):
+        if method != "GET":
+            return False
+        
+        for (_, domains) in self.groups.iteritems():
+            for (domain, flag) in domains:
+                parts = host.split(".")
+                for i in range(len(parts)-1, -1, -1):
+                    if ".".join(parts[i:]) == domain and flag:
+                        print "%s needs to be redirected to HTTPS." % host
+                        return True
+        return False
             
     def is_disabled(self, host):
         for groupname in self.disabled:
             domains = self.groups.get(groupname, [])
-            for domain in domains:
+            for (domain, _) in domains:
                 parts = host.split(".")
                 for i in range(len(parts)-1, -1, -1):
                     if ".".join(parts[i:]) == domain:
@@ -81,6 +99,9 @@ class FireflyForwardMatcher(ForwardMatcher):
                 return self.socks5_scheme
         return None
     
+    def need_redirect(self, method, host):
+        return self.hosts.need_redirect(method, host)
+    
 def load_file(filename, idna=True):
     f = codecs.open(filename, "r", "utf-8")
     data = [s.strip() for s in f.readlines()]
@@ -115,12 +136,23 @@ class FireflyHTTPApplication(HTTP2SocksSmartApplication):
             return
         
         try:
+            u = urlparse.urlsplit(url)
+            if self.matcher.need_redirect(method, host):
+                start_response(
+                    "%d %s" % (301, "Moved Permanently"), [
+                        ("Location", urlparse.urlunsplit(("https", u.netloc, u.path, u.query, u.fragment))),
+                        ("Connection", "close"),
+                    ],
+                )
+                yield ""
+                return            
+            
             set_forwarded_for(environ, headers)
             # no IPv6 ?
             http_conn = socket.create_connection((addrs[0], port), timeout=self.timeout)
             conn = HTTPConnection(host, port=port)
             conn.sock = http_conn
-            u = urlparse.urlsplit(url)
+            
             path = urlparse.urlunsplit(("", "", u.path, u.query, ""))
             conn.request(method, path, body, headers)
             resp = conn.getresponse()
@@ -131,7 +163,8 @@ class FireflyHTTPApplication(HTTP2SocksSmartApplication):
                     break
                 yield data
             conn.close()
-        except:
+        except Exception, e:
+            log.error("[Exception][FireflyHTTPApplication.forward_hosts_http]: %s" % str(e))
             start_response("500 Internal Server Error", [("Content-Type", "text/plain; charset=utf-8")])
             yield "Internal Server Error"
             return
@@ -196,7 +229,27 @@ class FireflyRelaySession(SmartRelaySession):
         self.track_sock(self.remoteconn)
         addrtype, bndaddr, bndport = sock_addr_info(self.remoteconn)
         request_success(self.socksconn, addrtype, bndaddr, bndport)
-        pipe_tcp(self.socksconn, self.remoteconn, self.timeout, self.timeout)
+        data = self.socksconn.recv(65536)
+        if data[:3] == 'GET':
+            request, rest = data.split('\r\n', 1)
+            method, path, version = request.split()
+            headers = mimetools.Message(StringIO(rest))
+            host = headers.getheader("host", "")
+            if self.matcher.need_redirect(method, host):
+                response = [
+                    "%s 301 Moved Permanently" % version,
+                    "Location: https://%s" % "".join([host, path]),
+                    "Connection: close",
+                    "", 
+                    ""
+                ]
+                self.socksconn.sendall("\r\n".join(response))
+            else:
+                self.remoteconn.sendall(data)
+                pipe_tcp(self.socksconn, self.remoteconn, self.timeout, self.timeout)
+        else:
+            self.remoteconn.sendall(data)
+            pipe_tcp(self.socksconn, self.remoteconn, self.timeout, self.timeout)
     
     def forward_hosts_udp(self, addrs, localhandler, firstdata, firstaddr):
         # no IPv6
@@ -227,7 +280,6 @@ class SocksProxy(IPC_Process):
         confdata = self.hub_ref.get('confdata')
         self.proxy_ip = confdata['socks_proxy_ip']
         self.proxy_port = confdata['socks_proxy_port']
-        
         
     def run(self):
         init_logging()

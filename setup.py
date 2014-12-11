@@ -10,10 +10,13 @@ build_exe_options = {
 		"config.json",
 		"firefly-blacklist.txt",
 		"firefly-blacklist.meta.json",
+		"firefly-hosts.txt",
+		"firefly-hosts.meta.json",
+		"firefly-hosts-disabled.txt",
 		"custom-blacklist.txt",
 		"custom-whitelist.txt",
 		"ca-bundle.crt",
-		"README",
+		"README.md",
 		"LICENSE",
 		("webui\\static", "webui\\static"),
 		("webui\\templates", "webui\\templates"),
@@ -43,7 +46,7 @@ exe = Executable(
 
 setup(
 	name = "firefly",
-	version = "0.1.3",
+	version = "0.2.0",
 	description = "an Internet censorship circumvention tool",
 	options = {"build_exe": build_exe_options},
 	executables = [exe]

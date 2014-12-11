@@ -3,101 +3,96 @@
     "date": "2014-12-02",
     "groups": {
         "Google": [
-            "google.com",
-            "googleapis.com",
-            "google.com",
-            "googleapis.com",
-            "googlehosted.com",
-            "googlezip.net",
-            "googleusercontent.com",
-            "ggpht.com",
-            "gstatic.com",
-            "www.gwtproject.org",
-            "googlesource.com",
-            "android.com",
-            "googlecode.com",
-            "g.cn",
-            "google.cn",
-            "gstatic.cn",
-            "google.com.hk",
-            "google.com.tw",
-            "google.com.sg",
-            "google.co.jp",
-            "google.com.co.jp",
-            "g.co",
-            "chrome.com",
-            "keyhole.com",
-            "chrome.angrybirds.com",
-            "googlesyndication.com",
-            "googlelabs.com",
-            "gmail.com",
-            "gooleadservices.com",
-            "google-analytics.com",
-            "panoramio.com",
-            "webmproject.org",
-            "golang.org",
-            "gwtproject.org"
+            ["google.com", 1],
+            ["googleapis.com", 0],
+            ["googlehosted.com", 0],
+            ["googlezip.net", 0],
+            ["googleusercontent.com", 1],
+            ["ggpht.com", 0],
+            ["gstatic.com", 0],
+            ["googlesource.com", 0],
+            ["android.com", 0],
+            ["googlecode.com", 0],
+            ["g.cn", 0],
+            ["google.cn", 0],
+            ["gstatic.cn", 0],
+            ["google.com.hk", 0],
+            ["google.com.tw", 0],
+            ["google.com.sg", 0],
+            ["google.co.jp", 0],
+            ["google.com.co.jp", 0],
+            ["g.co", 0],
+            ["chrome.com", 0],
+            ["keyhole.com", 0],
+            ["chrome.angrybirds.com", 0],
+            ["googlesyndication.com", 0],
+            ["googlelabs.com", 0],
+            ["gmail.com", 0],
+            ["gooleadservices.com", 0],
+            ["google-analytics.com", 0],
+            ["panoramio.com", 0],
+            ["webmproject.org", 0],
+            ["golang.org", 0],
+            ["gwtproject.org", 0]
         ],
         "Youtube": [
-            "youtube.com",
-            "youtu.be",
-            "youtube-nocookie.com",
-            "ytimg.com",
-            "googlevideo.com",
-            "s0-2mdn-net.l.google.com",
-            "youtube-ui.l.google.com"
+            ["youtube.com", 1],
+            ["youtu.be", 1],
+            ["youtube-nocookie.com", 0],
+            ["ytimg.com", 0],
+            ["googlevideo.com", 1]
         ],
         "Twitter": [
-            "twitter.com",
-            "t.co",
-            "tweetdeck.com",
-            "twimg.com",
-            "tinypic.com",
-            "twitpic.com"
+            ["twitter.com", 1],
+            ["t.co", 1],
+            ["tweetdeck.com", 0],
+            ["twimg.com", 0],
+            ["tinypic.com", 0],
+            ["twitpic.com", 0]
         ],
         "Facebook": [
-            "facebook.com",
-            "fbcdn.net",
-            "tfbnw.net",
-            "fbcdn-profile-a.akamaihd.net"
+            ["facebook.com", 1],
+            ["fbcdn.net", 1],
+            ["tfbnw.net", 1],
+            ["fbcdn-profile-a.akamaihd.net", 0]
         ],
         "Wikipedia": [
-            "wikipedia.org",
-            "mediawiki.org",
-            "wikidata.org",
-            "wikibooks.org",
-            "wikimedia.org",
-            "wikimediafoundation.org",
-            "wikinews.org",
-            "wikiquote.org",
-            "wikisource.org",
-            "wikiversity.org",
-            "wikivoyage.org",
-            "wiktionary.org"
+            ["wikipedia.org", 1],
+            ["mediawiki.org", 0],
+            ["wikidata.org", 0],
+            ["wikibooks.org", 0],
+            ["wikimedia.org", 0],
+            ["wikimediafoundation.org", 0],
+            ["wikinews.org", 0],
+            ["wikiquote.org", 0],
+            ["wikisource.org", 0],
+            ["wikiversity.org", 0],
+            ["wikivoyage.org", 0],
+            ["wiktionary.org", 0]
         ],
         "Flickr": [
-            "flickr.com"
+            ["flickr.com", 1]
         ],
         "live.com": [
-            "live.com"
+            ["live.com", 1]
         ],
         "box.com": [
-            "box.com"
+            ["box.com", 1]
         ],
         "igmur.com": [
-            "imgur.com"
+            ["imgur.com", 1]
         ],
         "duckduckgo.com": [
-            "duckduckgo.com"
+            ["duckduckgo.com", 1]
         ],
         "ixquick.com": [
-            "ixquick.com"
+            ["ixquick.com", 1]
         ],
         "startpage.com": [
-            "startpage.com"
+            ["startpage.com", 1]
         ],
         "Feedly": [
-            "feedly.com"
+            ["feedly.com", 1]
         ]
     }
 }

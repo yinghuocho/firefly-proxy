@@ -11,7 +11,7 @@
 Name "萤火虫翻墙代理"
 
 ; The file to write
-OutFile "firefly-proxy-win-0.1.3-install.exe"
+OutFile "firefly-proxy-win-0.2.0-install.exe"
 
 ; The default installation directory
 InstallDir $DESKTOP\Firefly
