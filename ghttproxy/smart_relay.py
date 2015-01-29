@@ -4,7 +4,7 @@ import re
 
 from server import HTTPProxyServer, ProxyApplication, get_destination
 from socks_relay import HTTP2SocksProxyApplication
-from gsocks.smart_relay import RESocksMatcher, ForwardScheme
+from gsocks.smart_relay import RESocksMatcher, ForwardDestination
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
         datefmt='%Y-%d-%m %H:%M:%S',
         level=logging.DEBUG, 
     )
-    scheme = ForwardScheme("socks5", urlparse('socks5://127.0.0.1:1080/'))
+    scheme = ForwardDestination("socks5", urlparse('socks5://127.0.0.1:1080/'))
     rules = {
         (re.compile(r'.*\.whereisip\.net$'), re.compile(r'.*'), re.compile(r'.*')): scheme,
         (re.compile(r'.*google\.com$'), re.compile(r'.*'), re.compile(r'.*')): scheme,

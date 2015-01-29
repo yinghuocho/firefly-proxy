@@ -12,13 +12,13 @@ import utils
 
 log = logging.getLogger(__name__)
 
-class ForwardScheme(object):
-    def __init__(self, name, data):
-        self.name = name
+class ForwardDestination(object):
+    def __init__(self, scheme, data):
+        self.scheme = scheme
         self.data = data
     
     def __repr__(self):
-        return "<%s:%r>" % (self.name, self.data)
+        return "<%s:%r>" % (self.scheme, self.data)
 
 class ForwardMatcher(object):
     def find(self, host, port, proto="tcp"):
@@ -30,12 +30,12 @@ class RESocksMatcher(ForwardMatcher):
         self.rules = rules
         
     def find(self, host, port, proto="tcp"):
-        for (pattern, scheme) in self.rules.iteritems():
+        for (pattern, dst) in self.rules.iteritems():
             (h, p, pr) = pattern
             if re.match(pr, proto) and re.match(h, host.rstrip(".")) \
                         and re.match(p, str(port)):
-                log.info("forward rule %s found for %s:%d:%s" % (scheme, host, port, proto))
-                return scheme
+                log.info("forward rule %s found for %s:%d:%s" % (dst, host, port, proto))
+                return dst
         return None
 
 class SmartRelayError(Exception): pass
@@ -49,11 +49,11 @@ class SmartRelaySession(RelaySession):
         self.register_forwarder("socks5", "tcp", self.forward_socks5_tcp)
         self.register_forwarder("socks5", "udp", self.forward_socks5_udp)
         
-    def register_forwarder(self, scheme_name, proto, forwarder):
-        self.forwarders["_".join([scheme_name, proto])] = forwarder
+    def register_forwarder(self, scheme, proto, forwarder):
+        self.forwarders["_".join([scheme, proto])] = forwarder
         
-    def find_forwarder(self, scheme_name, proto):
-        return self.forwarders.get("_".join([scheme_name, proto]), None)
+    def find_forwarder(self, scheme, proto):
+        return self.forwarders.get("_".join([scheme, proto]), None)
         
     def forward_socks5_handshake(self, socksconn):
         initreq = msg.InitRequest()
@@ -99,30 +99,30 @@ class SmartRelaySession(RelaySession):
             handler.relay_udp()
         return True
     
-    def forward_tcp(self, scheme, req):
-        forwarder = self.find_forwarder(scheme.name, "tcp")
+    def forward_tcp(self, dst, req):
+        forwarder = self.find_forwarder(dst.scheme, "tcp")
         if forwarder:
-            forwarder(scheme.data, req)
+            forwarder(dst.data, req)
         else:            
-            raise SmartRelayError("forward scheme %s not supported" % scheme.name)
+            raise SmartRelayError("forward scheme %s not supported" % dst.scheme)
             
-    def forward_udp(self, scheme, localhandler, firstdata, firstaddr):
-        forwarder = self.find_forwarder(scheme.name, "udp")
+    def forward_udp(self, dst, localhandler, firstdata, firstaddr):
+        forwarder = self.find_forwarder(dst.scheme, "udp")
         if forwarder:
-            forwarder(scheme.data, localhandler, firstdata, firstaddr)
+            forwarder(dst.data, localhandler, firstdata, firstaddr)
         else:            
-            raise SmartRelayError("forward scheme %s not supported" % scheme.name)
+            raise SmartRelayError("forward scheme %s not supported" % dst.scheme)
             
     def cmd_connect(self, req):
-        scheme = self.matcher.find(req.dstaddr, req.dstport, proto="tcp")
-        if not scheme:
+        dst = self.matcher.find(req.dstaddr, req.dstport, proto="tcp")
+        if not dst:
             # no forward schemes found, go as local socks proxy 
             handler = SocksSession(self.socksconn)
             self.handler = handler
             handler.proc_tcp_request(req)
             handler.relay_tcp()
         else:
-            self.forward_tcp(scheme, req)
+            self.forward_tcp(dst, req)
             
     def cmd_udp_associate(self, req):
         handler = SocksSession(self.socksconn)

@@ -1,32 +1,32 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 import os
 
+from lib.ipc import ActorProcess
 from lib.systray import SysTrayIcon
-from lib.ipc import IPC_Process
 from lib.utils import init_logging
 
-class Daemon(IPC_Process):
-    def __init__(self, hub_ref):
-        super(Daemon, self).__init__()
-        self.hub_ref = hub_ref
+class UI(ActorProcess):
+    def __init__(self, coordinator):
+        super(UI, self).__init__()
+        self.coordinator = coordinator
         
     def systray_quit(self, systray_ref):
         pass
     
     def sytray_launch_browser(self, systray_ref):
-        self.hub_ref.IPC_launch_browser()
+        self.coordinator.IPC_launch_browser()
     
     def systray_open_webadmin(self, systray_ref):
-        self.hub_ref.IPC_open_admin_url()
-    
+        self.coordinator.IPC_open_admin_url()
+        
     def run(self):
         init_logging()
-        rootdir = self.hub_ref.get('rootdir')
-        confdata = self.hub_ref.get('confdata')
+        rootdir = self.coordinator.get('rootdir')
+        confdata = self.coordinator.get('confdata')
+        icon = os.path.join(rootdir, confdata['icon_path']) 
         SysTrayIcon(
-            os.path.join(rootdir, confdata['icon_path']),
+            icon,
             u'萤火虫翻墙代理',
             (
                 (u'翻墙浏览', None, self.sytray_launch_browser),
@@ -37,6 +37,3 @@ class Daemon(IPC_Process):
             default_menu_index=1,
         )
     
-        
-        
-        

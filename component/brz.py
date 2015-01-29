@@ -6,7 +6,7 @@ import codecs
 import urllib
 import urlparse
 
-from lib.ipc import IPC_Host
+from lib.ipc import ActorObject
 
 # proxy type
 SOCKS5 = 1
@@ -124,7 +124,7 @@ implemented = {
 }
 
 # resume 
-resume_function = None
+resume_proxy_config = None
 
 if os.name == 'nt':
     import _brz_win
@@ -132,22 +132,23 @@ if os.name == 'nt':
     implemented['iexplore'] = (1, (HTTP,), (_brz_win.launch_ie, _brz_win.launch_ie_tab))
     resume_function = _brz_win.resume_ie_settings
 
-class Browser(IPC_Host):
-    def __init__(self, hub_ref, http_proxy_enabled, socks_proxy_enabled, initial_url=None):
+class Browser(ActorObject):
+    def __init__(self, coordinator, http_proxy_enabled, socks_proxy_enabled, initial_url=None):
         super(Browser, self).__init__()
-        self.hub_ref = hub_ref
+        self.coordinator = coordinator
         self.http_proxy_enabled = http_proxy_enabled
         self.socks_proxy_enabled = socks_proxy_enabled
+        self.initial_url = initial_url
+        
         self.instance = None
         self.cleaner = None
-        self.initial_url = initial_url
         
     def _launch_browser(self, url, tab=False):
         addrs = {}
         if self.http_proxy_enabled:
-            addrs[HTTP] = self.hub_ref.IPC_http_proxy_addr()
+            addrs[HTTP] = self.coordinator.IPC_http_proxy_addr()
         if self.socks_proxy_enabled:
-            addrs[SOCKS5] = self.hub_ref.IPC_socks_proxy_addr()
+            addrs[SOCKS5] = self.coordinator.IPC_socks_proxy_addr()
         
         browsers = []
         for (name, executable, default, _) in iterate_browsers():
@@ -167,18 +168,19 @@ class Browser(IPC_Host):
                     break       
         if not browsers:
             return None
+        # sort available browsers by pritority
         browsers.sort(key=lambda x: x[0], reverse=True)
         (_, (proxy_type, (proxy_ip, proxy_port)), (launch_func, launch_tab_func), executable, default) = browsers[0]
         
-        rootdir = self.hub_ref.get('rootdir')
+        rootdir = self.coordinator.get('rootdir')
         if tab:
             return launch_tab_func(executable, url, rootdir, default)
         else:
             return launch_func(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, default)
     
     def default_page(self):
-        confdata = self.hub_ref.get('confdata')
-        rootdir = self.hub_ref.get('rootdir')
+        confdata = self.coordinator.get('confdata')
+        rootdir = self.coordinator.get('rootdir')
         defaultpage = confdata['home_page']
         if not defaultpage.startswith("http://"):
             defaultpage = os.path.join(rootdir, defaultpage)
@@ -189,7 +191,9 @@ class Browser(IPC_Host):
         if not url:
             url = self.default_page() 
         self.instance = self._launch_browser(url)
-        self.start_IPC()
+        self.start_actor()
+        # cleaner to quit IPC actor after browser closed, 
+        # also try to resume previous browser setting.
         self.cleaner = threading.Thread(target=self.clean)
         self.cleaner.daemon = True
         self.cleaner.start()
@@ -197,12 +201,12 @@ class Browser(IPC_Host):
     def clean(self):
         if self.instance:
             self.instance.wait()
-            self.quit_IPC()
-            if resume_function:
-                resume_function()
+            self.quit_actor()
+            if resume_proxy_config:
+                resume_proxy_config()
         
     def terminate(self):
-        self.quit_IPC()
+        self.quit_actor()
         if self.instance:
             self.instance.terminate()
             

@@ -8,17 +8,17 @@ if sys.platform == 'win32':
 else:
     from multiprocessing.reduction import reduce_connection, rebuild_connection
 
-class IPC_Reference(object):
+class Actor(object):
     def __init__(self):
         self.inbox = Queue()
         self.shared_data = {}
         
     def share(self, name, value):
         self.shared_data[name] = value
-        
+
     def get(self, name):
         return self.shared_data.get(name, None)
-        
+    
     def _ask(self, msg, args=(), kwargs={}):
         i, o = Pipe()
         reduced = reduce_connection(i)
@@ -41,25 +41,24 @@ class IPC_Reference(object):
                 chan.send(e)
                 chan.close()
         
-    def _handle(self, ipc_handlers):
+    def _handle(self, msg_handlers):
         while True:
             (msg, args, kwargs, chan) = self.inbox.get()
             if msg == "quit":
                 break
             try:
-                handler = ipc_handlers[msg]
-                # bad performance, but makes IPC re-enterable 
+                handler = msg_handlers[msg]
                 t = threading.Thread(target=self._do, args=(handler, chan, args, kwargs))
                 t.daemon = True
                 t.start() 
             except:
                 pass
             
-    def _start(self, host):
-        ipc_handlers = dict(
-            [(m, getattr(host, m)) for m in dir(host) if m.startswith("IPC_")]
+    def _start(self, holder):
+        msg_handlers = dict(
+            [(m, getattr(holder, m)) for m in dir(holder) if m.startswith("IPC_")]
         )
-        t = threading.Thread(target=self._handle, args=(ipc_handlers,))
+        t = threading.Thread(target=self._handle, args=(msg_handlers,))
         t.daemon = True
         t.start()
         
@@ -75,27 +74,27 @@ class IPC_Reference(object):
         else:
             raise AttributeError
         
-class IPC_Host(object):
+class ActorObject(object):
     def __init__(self):
-        self._ref = IPC_Reference()
+        self._ref = Actor()
         
-    def start_IPC(self):
+    def start_actor(self):
         self._ref._start(self)
         
-    def quit_IPC(self):
+    def quit_actor(self):
         self._ref._quit()
         
     def ref(self):
         return self._ref
     
-class IPC_Process(IPC_Host):
+class ActorProcess(ActorObject):
     def __init__(self):
-        super(IPC_Process, self).__init__()
+        super(ActorProcess, self).__init__()
         self.process = None
     
     def _run(self):
         # in child process, start IPC_ref, so parent can invoke IPC_xxx interfaces.
-        self.start_IPC()
+        self.start_actor()
         self.run()
     
     def run(self):
@@ -111,7 +110,7 @@ class IPC_Process(IPC_Host):
             self.process.join()
         
     def terminate(self):
-        self.quit_IPC()
+        self.quit_actor()
         if self.process:
             self.process.terminate()
         
@@ -120,4 +119,43 @@ class IPC_Process(IPC_Host):
             return self.process.is_alive()
         else:
             return False
+        
+if __name__ == "__main__":
+    import time
+    import os
+    class P1(ActorProcess):
+        def run(self):
+            while True:
+                time.sleep(1)
+                
+        def IPC_hello(self):
+            return "Hello, I am P1 running at " + str(os.getpid())
+            
+    class P2(ActorProcess):
+        def run(self):
+            while True:
+                time.sleep(1)
+    
+        def IPC_hello(self):
+            return "Hello, I am P2 running at " + str(os.getpid())
+        
+    class O1(ActorObject):
+        def IPC_hello(self):
+            return "Hello, I am O3 running at " + str(os.getpid())
+    
+    p1 = P1()
+    p2 = P2()
+    p1.start()
+    p2.start()
+    print "main process %d" % os.getpid()
+    print p1.ref().IPC_hello()
+    print p2.ref().IPC_hello()
+    p1.terminate()
+    p1.join()
+    p2.terminate()
+    p2.join()
+    
+    o1 = O1()
+    o1.start_actor()
+    print o1.ref().IPC_hello()
         

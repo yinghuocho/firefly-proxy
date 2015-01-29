@@ -1,15 +1,11 @@
 {
     "blacklist": "firefly-blacklist.txt",
     "blacklist_meta": "firefly-blacklist.meta.json",
-    "blacklist_meta_url": "https://raw.githubusercontent.com/yinghuocho/firefly-blacklist/master/firefly-blacklist.meta.json",
-    "blacklist_url": "https://raw.githubusercontent.com/yinghuocho/firefly-blacklist/master/firefly-blacklist.txt",
+    "blacklist_meta_url": "http://gofirefly.org/blacklist/firefly-blacklist.meta.json",
+    "blacklist_url": "http://gofirefly.org/blacklist/firefly-blacklist.txt",
     "circumvention_chan_meek": {
-        "relays": [
-            "https://194.78.99.24/,firefly-relay-1.appspot.com,stream",
-            "https://212.188.7.246/,firefly-relay-1.appspot.com,stream",
-            "https://a0.awsstatic.com/,dswpv736infni.cloudfront.net,stream",
-            "https://ajax.aspnetcdn.com/,az672578.vo.msecnd.net,stream"
-        ]
+        "relays": "meek-relays.txt",
+        "url": "http://gofirefly.org/meek/relays.txt"
     },
     "circumvention_chan_shadowsocks": {
         "fast_open": 0,
@@ -32,9 +28,16 @@
     "circumvention_proxy_port": 20151,
     "custom_blacklist": "custom-blacklist.txt",
     "custom_whitelist": "custom-whitelist.txt",
-    "enable_http_proxy": 1,
-    "enable_socks_proxy": 0,
+    "enable_http_proxy": 0,
+    "enable_socks_proxy": 1,
     "home_page": "webui/static/html/ifanqiang.html",
+    "hosts": {
+        "data": "firefly-hosts.txt",
+        "data_url": "http://gofirefly.org/hosts/firefly-hosts.txt",
+        "disabled": "firefly-hosts-disabled.txt",
+        "meta": "firefly-hosts.meta.json",
+        "meta_url": "http://gofirefly.org/hosts/firefly-hosts.meta.json"
+    },
     "http_proxy_ip": "127.0.0.1",
     "http_proxy_port": 20149,
     "icon_path": "webui/static/img/favicon.ico",

@@ -7,3 +7,7 @@ config.json.last
 build/
 chrome_user_data/
 firefox_user_data/
+
+main.py.win
+main.py.linux
+meek-relays.txt

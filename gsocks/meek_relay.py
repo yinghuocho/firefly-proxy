@@ -2,16 +2,15 @@
 import logging
 import uuid
 import random
-from collections import namedtuple
-
-import grequests
-import requests.exceptions
-from requests.adapters import HTTPAdapter
+from collections import defaultdict
 
 import gevent
 from gevent import select
-from gevent.queue import Queue
+from gevent import socket
+from gevent.queue import Queue, LifoQueue
 from gevent.event import Event
+
+from geventhttpclient import HTTPClient, URL
 
 from relay import RelayFactory, RelaySession, RelaySessionError
 from msg import Reply, GENERAL_SOCKS_SERVER_FAILURE
@@ -28,23 +27,60 @@ log = logging.getLogger(__name__)
 def session_id():
     return str(uuid.uuid4())[:SESSION_ID_LENGTH]
         
-def get_meek_meta(resp_headers, header, default=""):
+def get_meek_meta(headers, key, default=""):
     # requests lib gives lower-string headers
-    return resp_headers.get(header.lower(), default)    
+    return dict(headers).get(key.lower(), default)    
 
-Relay = namedtuple("Relay", ["fronturl", "hostname", "properties", "failure"])
+class Relay:
+    def __init__(self, fronturl="", hostname="", properties="", failure=0):
+        self.fronturl = fronturl
+        self.hostname = hostname
+        self.properties = properties
+        self.failure = failure 
         
-class MeekSession(RelaySession):
+class HTTPClientPool:
+    def __init__(self):
+        self.pool = defaultdict(LifoQueue)
+        
+    def get(self, relay, timeout):
+        try:
+            return self.pool[relay.fronturl].get(block=False)
+        except gevent.queue.Empty:
+            insecure = "verify" not in relay.properties
+            conn = HTTPClient.from_url(
+                URL(relay.fronturl), 
+                insecure=insecure,
+                block_size=MAX_PAYLOAD_LENGTH,
+                connection_timeout=timeout,
+                network_timeout=timeout,
+                concurrency=1,
+            )
+            return conn
+        
+    def release(self, relay, conn):
+        self.pool[relay.fronturl].put(conn)
+          
+class MeekSession(RelaySession):  
+    conn_pool = HTTPClientPool()
+    
     def __init__(self, socksconn, meek, timeout):
         super(MeekSession, self).__init__(socksconn)
         self.sessionid = session_id()
         self.meek = meek
         self.meektimeout = timeout
         self.relay = self.meek.select_relay()
-        self.http_session = requests.Session()
-        # We do't want meek channel to use system proxy setting. 
-        self.http_session.trust_env = False
-        self.http_session.mount(self.relay.fronturl, HTTPAdapter(max_retries=0))
+        
+#         insecure = "verify" not in self.relay.properties
+#         self.httpclient = HTTPClient.from_url(
+#             URL(self.relay.fronturl), 
+#             insecure=insecure,
+#             block_size=MAX_PAYLOAD_LENGTH,
+#             connection_timeout=self.meektimeout,
+#             network_timeout=self.meektimeout,
+#             concurrency=1,
+#         )
+        self.httpclient = self.conn_pool.get(self.relay, self.meektimeout)
+        
         self.udpsock = None
         self.allsocks = [self.socksconn]
         
@@ -59,32 +95,34 @@ class MeekSession(RelaySession):
         self.timer = SharedTimer(self.meektimeout)
         
     def _stream_response(self, response):
-        chunk = ""
-        while True:
-            try:
-                chunk = response.iter_content(chunk_size=MAX_PAYLOAD_LENGTH).next()
-                log.debug("streaming DOWN %d bytes" % len(chunk))
+        try:
+            chunk = response.read(MAX_PAYLOAD_LENGTH)
+            while chunk:
+                log.debug("%s streaming DOWN %d bytes" % (self.sessionid, len(chunk)))
                 yield chunk, ""
-            except:
-                yield "", ""
-                return
+                chunk = response.read(MAX_PAYLOAD_LENGTH)            
+        except GeneratorExit: 
+            response.release()
+            raise StopIteration 
         
     def meek_response(self, response, stream):
         if stream:
             return self._stream_response(response)
-        if not response.content:
+        data = response.read()
+        response.release()
+        if not data:
             return [("", "")]
         if not self.udpsock:
-            return [(response.content, "")]
+            return [(data, "")]
         
         # parse UDP packets 
-        log.debug("DOWN %d bytes" % len(response.content))
+        log.debug("%s DOWN %d bytes" % (self.sessionid, len(data)))
         lengths = get_meek_meta(response.headers, HEADER_UDP_PKTS).split(",")
         pos = 0
         pkts = []
         for length in lengths:
             nxt = pos + int(length)
-            pkts.append((response.content[pos:nxt], ""))
+            pkts.append((data[pos:nxt], ""))
             pos = nxt
         return pkts
         
@@ -93,7 +131,8 @@ class MeekSession(RelaySession):
             HEADER_SESSION_ID:  self.sessionid,
             HEADER_MSGTYPE:     MSGTYPE_DATA,
             'Host':             self.relay.hostname,
-            'Content-Type':  "application/octet-stream",
+            'Content-Type':     "application/octet-stream",
+            'Connection':       "Keep-Alive",
         }
         stream = False
         if not self.udpsock and "stream" in self.relay.properties:
@@ -105,26 +144,26 @@ class MeekSession(RelaySession):
             headers[HEADER_UDP_PKTS] = lengths
     
         data = "".join(pkts)
+        headers['Content-Length'] = str(len(data))
         for _ in range(CLIENT_MAX_TRIES):
             try:
-                verify = "verify" in self.relay.properties
-                reqs = [grequests.post(self.relay.fronturl, data=data,
-                    headers=headers, verify=verify, stream=stream, timeout=self.meektimeout, session=self.http_session)]
-                resp = grequests.map(reqs, stream=stream)[0]
-                if resp.status_code != requests.codes.ok:  # @UndefinedVariable
+                log.debug("%s UP %d bytes" % (self.sessionid, len(data)))
+                resp = self.httpclient.post("/", body=data, headers=headers)
+                if resp.status_code != 200:  
                     # meek server always give 200, so all non-200s mean external issues. 
                     continue
                 err = get_meek_meta(resp.headers, HEADER_ERROR)
                 if err:
                     return [("", err)]
                 else:
-                    log.debug("UP %d bytes" % len(data))
+                    
                     try:
                         return self.meek_response(resp, stream)
                     except Exception as ex:
                         log.error("[Exception][meek_roundtrip - meek_response]: %s" % str(ex))
+                        resp.release()
                         return [("", "Data Format Error")]
-            except requests.exceptions.Timeout:
+            except socket.timeout:  # @UndefinedVariable
                 return [("", "timeout")]
             except Exception as ex:
                 log.error("[Exception][meek_roundtrip]: %s" % str(ex))
@@ -288,17 +327,13 @@ class MeekSession(RelaySession):
         headers = {
             HEADER_SESSION_ID:  self.sessionid,
             HEADER_MSGTYPE:     MSGTYPE_TERMINATE,
-            'Content-Type':     "application/octet-stream",
-            'Host':             self.relay.hostname
+            #'Content-Type':     "application/octet-stream",
+            'Content-Length':   "0",
+            'Connection':       "Keep-Alive",
+            'Host':             self.relay.hostname,
         }
         try:
-            verify = "verify" in self.relay.properties
-            grequests.map([
-                grequests.post(
-                    self.relay.fronturl, data="", headers=headers,
-                        verify=verify, session=self.http_session
-                )
-            ])
+            self.httpclient.post("/", data="", headers=headers)
         except:
             pass
     
@@ -306,7 +341,8 @@ class MeekSession(RelaySession):
         self.meek_terminate()
         for sock in self.allsocks:
             sock.close()
-        self.http_session.close()
+        #self.httpclient.close()
+        self.conn_pool.release(self.relay, self.httpclient)
         
 class MeekRelayFactory(RelayFactory):
     def __init__(self, relays, timeout=60):     

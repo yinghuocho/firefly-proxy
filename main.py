@@ -3,10 +3,11 @@ import sys
 import json
 import codecs
 import shutil
-import hashlib
-import collections
-import multiprocessing
 from datetime import datetime, date
+import multiprocessing
+
+from httplib2 import socks, ProxyInfo
+
 if getattr(sys, 'frozen', False):
     rootdir = os.path.dirname(sys.executable)
 else:
@@ -15,38 +16,33 @@ else:
 rootdir = rootdir.decode(sys.getfilesystemencoding())
 sys.path.append(rootdir)
 
-import requesocks as requests
-
-from lib.ipc import IPC_Host
-from lib.utils import init_logging
-from component.daemon import Daemon
+from lib.utils import init_logging, local_update_datafile
+from lib.ipc import ActorObject
+from component.ui import UI
 from component.admin import Webadmin
-from component.circumvention import CircumventionChannel
-from component.local import create_forward_matcher, HTTPProxy, SocksProxy
+from component.circumvention import CircumventionChannel, remote_update_meek_relays
+from component.local import HTTPProxy, SocksProxy
 from component.brz import Browser
-
-class Hub(IPC_Host):
+from component.matcher import create_matcher, blacklist_info, remote_update_blacklist
+from component.hosts import hosts_info, remote_update_hosts
+    
+class Coordinator(ActorObject):
     def __init__(self, rootdir, conf_file):
-        super(Hub, self).__init__()
+        super(Coordinator, self).__init__()
         
         self.rootdir = rootdir
         self.conf_file = conf_file
         
         self.confdata = None
         self.webadmin = None
-        self.daemon = None
+        self.ui = None
         self.cc_channel = None
-        self.forward_matcher = None
+        
+        self.matcher = None
         self.http_proxy = None
         self.socks_proxy = None
         self.browser = None
-        
-    def initialize(self):
-        self.loadconf()
-        self.ref().share('rootdir', self.rootdir)
-        self.ref().share('confdata', self.confdata)
-        self.start_IPC()
-        
+    
     def loadconf(self):
         f = codecs.open(os.path.join(self.rootdir, self.conf_file), "r", "utf-8")
         self.confdata = json.loads(f.read())
@@ -58,190 +54,138 @@ class Hub(IPC_Host):
         default = conf + ".default"
         if not os.path.isfile(default):
             shutil.copy(conf, default)
-        
+    
     def recover_conf(self):
         conf = os.path.join(self.rootdir, self.conf_file)
         shutil.copy(conf + ".last", conf)
-    
-    def run_daemon(self):
-        self.daemon = Daemon(self.ref())
-        self.daemon.start()
         
-    def run_webadmin(self):
+    def initialize(self):
+        self.loadconf()
+        self.ref().share('rootdir', self.rootdir)
+        self.ref().share('confdata', self.confdata)
+        self.start_actor()
+        
+    def start_ui(self):
+        self.ui = UI(self.ref())
+        self.ui.start()
+        
+    def start_webadmin(self):
         self.webadmin = Webadmin(self.ref())
         self.webadmin.start()
-            
-    def run_cc_channel(self):
+        
+    def start_cc_channel(self):
         try:
             self.cc_channel = CircumventionChannel(self.ref())
             self.cc_channel.start()
         except Exception, e:
             print "failed to start circumvention channel: %s" % str(e)
-        
-    def load_forward_matcher(self):
-        f = codecs.open(
-            os.path.join(self.rootdir, self.confdata['blacklist_meta']), "r", "utf-8")
-        self.blacklist_meta = json.loads(f.read())
-        f.close()
-        f = codecs.open(
-            os.path.join(self.rootdir, self.confdata['hosts']['meta']), "r", "utf-8")
-        self.hosts_meta = json.loads(f.read(), object_pairs_hook=collections.OrderedDict)
-        f.close()
-        
-        f = codecs.open(
-            os.path.join(self.rootdir, self.confdata['hosts']['disabled']), "r", "utf-8")
-        self.hosts_disabled_groups = [s.strip() for s in f.readlines() if s and not s.startswith('#')]
-        
-        forward_url = self.IPC_forward_url()
-        if forward_url:
-            self.forward_matcher = create_forward_matcher( 
-                os.path.join(self.rootdir, self.confdata['blacklist']),
-                os.path.join(self.rootdir, self.confdata['custom_blacklist']),
-                os.path.join(self.rootdir, self.confdata['custom_whitelist']),
-                forward_url,
-                
-                os.path.join(self.rootdir, self.confdata['hosts']['data']),
-                self.hosts_meta.get('groups', {}),
-                self.hosts_disabled_groups,
-            )
-        
-    def update_forward_matcher(self):
-        self.load_forward_matcher()
-        if self.http_proxy:
-            self.http_proxy.ref().IPC_update_forward_matcher(self.forward_matcher)
-        if self.socks_proxy:
-            self.socks_proxy.ref().IPC_update_forward_matcher(self.forward_matcher)
             
-    def run_local_proxy(self):
-        self.load_forward_matcher()
+    def start_local_proxy(self):
+        global rootdir
+        
+        circumvention_url = self.IPC_circumvention_url()
+        self.matcher = create_matcher(rootdir, self.confdata, circumvention_url)
         if self.confdata['enable_http_proxy']:
             try:
-                self.http_proxy = HTTPProxy(self.ref(), self.forward_matcher)
+                self.http_proxy = HTTPProxy(self.ref(), self.matcher)
                 self.http_proxy.start()
             except Exception, e:
                 print "failed to start http proxy: %s" % str(e)
         
         if self.confdata['enable_socks_proxy']:
             try:
-                self.socks_proxy = SocksProxy(self.ref(), self.forward_matcher)
+                self.socks_proxy = SocksProxy(self.ref(), self.matcher)
                 self.socks_proxy.start()
             except Exception, e:
                 print "failed to start socks proxy: %s" % str(e)
                 
-    def run_browser(self, initial_url=None):
-        http_proxy_enabled = False
-        socks_proxy_enabled = False
-        if self.http_proxy:
-            http_proxy_enabled = True
+    def proxy_info(self):
         if self.socks_proxy:
-            socks_proxy_enabled = True
-            
+            ip, port = self.socks_proxy.ref().IPC_addr()
+            return ProxyInfo(socks.PROXY_TYPE_SOCKS5, ip, port, True, None, None)
+        elif self.http_proxy:
+            ip, port = self.http_proxy.ref().IPC_addr()
+            return (socks.PROXY_TYPE_HTTP, ip, port, True, None, None)
+        else:
+            return None
+                
+    def update_matcher(self):
+        circumvention_url = self.IPC_circumvention_url()
+        self.matcher = create_matcher(rootdir, self.confdata, circumvention_url)
+        if self.http_proxy:
+            self.http_proxy.ref().IPC_update_matcher(self.matcher)
+        if self.socks_proxy:
+            self.socks_proxy.ref().IPC_update_matcher(self.matcher)
+                
+    def start_browser(self, url=None):
+        http_proxy_enabled = True if self.http_proxy else False
+        socks_proxy_enabled = True if self.socks_proxy else False
         if not http_proxy_enabled and not socks_proxy_enabled:
             return
-        
         try:
-            self.browser = Browser(self.ref(), http_proxy_enabled, socks_proxy_enabled, initial_url=initial_url)
+            self.browser = Browser(self.ref(), http_proxy_enabled, socks_proxy_enabled, initial_url=url)
             self.browser.start()
         except Exception, e:
             print "failed to launch browser failed: %s" % str(e)
-                 
-    def update_data(self, meta, metafile, metaurl, datafile, dataurl):
-        if self.socks_proxy:
-            url = self.socks_proxy.ref().IPC_url()
-        elif self.http_proxy:
-            url = self.http_proxy.ref().IPC_url()
-        else:
-            url = ""
-        if url:
-            proxies = {
-                'http': url,
-                'https': url,
-            }
-        else:
-            # use system proxies
-            proxies = {}
-        
-        r1 = requests.get(metaurl, proxies=proxies)
-        new_meta = json.loads(r1.text)
-        if new_meta['date'] == meta['date']:
-            return True
-        
-        r2 = requests.get(dataurl, proxies=proxies)
-        hasher = hashlib.sha1()
-        hasher.update(r2.text.encode("utf-8"))
-        if hasher.hexdigest() == new_meta['sha1']:
-            with codecs.open(metafile, "w", "utf-8") as f1:
-                f1.write(r1.text)
-            with codecs.open(datafile, "w", "utf-8") as f2:
-                f2.write(r2.text)
-            return True
-        else:
-            return False
-             
-    def update_blacklist(self):
-        return self.update_data(
-            self.blacklist_meta,
-            os.path.join(self.rootdir, self.confdata['blacklist_meta']),
-            self.confdata['blacklist_meta_url'],
-            os.path.join(self.rootdir, self.confdata['blacklist']),
-            self.confdata['blacklist_url'],
-        )
-        
-    def update_hosts(self):
-        return self.update_data(
-            self.hosts_meta,
-            os.path.join(self.rootdir, self.confdata['hosts']['meta']),
-            self.confdata['hosts']['meta_url'],
-            os.path.join(self.rootdir, self.confdata['hosts']['data']),
-            self.confdata['hosts']['data_url'],
-        )
-             
-    def misc(self):
+            
+    def check_and_update_blacklist(self):
         try:
-            bl_date = datetime.strptime(self.blacklist_meta['date'], '%Y-%m-%d').date()
-            if date.today() > bl_date:
-                # try to update when old than one day.
-                if self.update_blacklist():
-                    self.update_forward_matcher()
+            blacklist_date = datetime.strptime(self.matcher.blacklist_matcher.meta['date'], '%Y-%m-%d').date()
+            if date.today() > blacklist_date:
+                updated = remote_update_blacklist(self.proxy_info(), self.rootdir, self.confdata)
+                if updated:
+                    self.update_matcher()
         except Exception, e:
             print "failed to update blacklist: %s" % str(e)
             
+    def check_and_update_hosts(self):
         try:
-            hosts_date = datetime.strptime(self.hosts_meta['date'], '%Y-%m-%d').date()
+            hosts_date = datetime.strptime(self.matcher.hosts.meta['date'], '%Y-%m-%d').date()
             if date.today() > hosts_date:
-                if self.update_hosts():
-                    self.update_forward_matcher()
+                updated = remote_update_hosts(self.proxy_info(), self.rootdir, self.confdata)
+                if updated:
+                    self.update_matcher()
         except Exception, e:
-            print "failed to udpate hosts: %s" % str(e)
-             
+            print "failed to update hosts: %s" % str(e)
+            
+    def update_meek_relays(self):
+        try:
+            updated = remote_update_meek_relays(self.proxy_info(), self.rootdir, self.confdata)
+            if updated:
+                self.cc_channel.ref().IPC_update_meek_relays()
+        except Exception, e:
+            print "failed to update meek relays: %s" % str(e)
+        
     def run(self):
         try:
             self.initialize()
-            self.run_webadmin()
-            self.run_daemon()
+            self.start_webadmin()
+            self.start_ui()
         except Exception, e:
             print "failed to start basic steps/processes: %s, try to recover ..." % str(e)
-            if self.recover_conf():
-                if self.webadmin:
-                    self.webadmin.terminate()
-                    self.webadmin.join()
-                if self.daemon:
-                    self.daemon.terminate()
-                    self.daemon.join()
-                self.initialize()
-                self.run_webadmin()
-                self.run_daemon()
-                
+            self.recover_conf()
+            if self.webadmin:
+                self.webadmin.terminate()
+                self.webadmin.join()
+            if self.ui:
+                self.ui.terminate()
+                self.ui.join()
+            self.initialize()
+            self.run_webadmin()
+            self.run_daemon()
+        
         self.backup_conf()
-        self.run_cc_channel()
-        self.run_local_proxy()
+        self.start_cc_channel()
+        self.start_local_proxy()
         if self.confdata['launch_browser']:
-            self.run_browser()
-            
-        # misc tasks after launching 
-        self.misc()
-        # wait for daemon to quit, then clean
-        self.daemon.join()
+            self.start_browser()
+        
+        if self.cc_channel.type == "meek":
+            self.update_meek_relays()
+        self.check_and_update_blacklist()
+        self.check_and_update_hosts()
+        
+        self.ui.join()
         self.end()
         
     def end(self):
@@ -259,12 +203,44 @@ class Hub(IPC_Host):
             self.browser.terminate()
             self.browser.join()
             
-    def write_file(self, data, dst):
-        filename = dst + ".tmp"
-        f = codecs.open(filename, "w", "utf-8")
-        f.write(u"\n".join(data))
-        f.close()
-        shutil.move(filename, dst)
+    # IPC interfaces
+    def IPC_circumvention_url(self):
+        """ask circumvention channel for forwarding url"""
+        return self.cc_channel.ref().IPC_url()
+    
+    def IPC_socks_proxy_addr(self):
+        return self.socks_proxy.ref().IPC_addr()
+    
+    def IPC_http_proxy_addr(self):
+        return self.http_proxy.ref().IPC_addr()
+    
+    def IPC_launch_browser(self):
+        if self.browser and self.browser.is_alive():
+            return self.browser.ref().IPC_open_default_page()
+        else:
+            self.start_browser()
+            
+    def IPC_open_admin_url(self):
+        url =  self.webadmin.ref().IPC_url()
+        if self.browser and self.browser.is_alive():
+            return self.browser.ref().IPC_open_url(url)
+        else:
+            self.start_browser(url)
+            
+    def IPC_shadowsocks_methods(self):
+        return self.cc_channel.ref().IPC_shadowsocks_methods()
+    
+    def IPC_blacklist_info(self):
+        return blacklist_info(self.rootdir, self.confdata, self.matcher.blacklist_matcher)
+        
+    def IPC_hosts_info(self):
+        return hosts_info(self.rootdir, self.confdata, self.matcher.hosts)
+        
+    def IPC_get_custom_blacklist(self):
+        return self.matcher.blacklist_matcher.get_custom_blacklist()
+    
+    def IPC_get_custom_whitelist(self):
+        return self.matcher.blacklist_matcher.get_custom_whitelist()
     
     def IPC_update_config(self, data):
         try:
@@ -281,100 +257,45 @@ class Hub(IPC_Host):
             print "failed to update config: %s" % str(e)
             return None
         
-    def IPC_forward_url(self):
-        return self.cc_channel.ref().IPC_url()
-    
-    def IPC_update_blacklist(self):
-        try:
-            if self.update_blacklist():
-                self.update_forward_matcher()
-            return True
-        except Exception, e:
-            print "failed to update blacklist: %s" % str(e)
-            return False
-        
-    def IPC_update_hosts(self):
-        try:
-            if self.update_hosts():
-                self.update_forward_matcher()
-            return True
-        except Exception, e:
-            print "failed to update hosts file: %s" % str(e)
-            return False   
-    
-    def IPC_blacklist_info(self):
-        return (
-            os.path.join(self.rootdir, self.confdata['blacklist']),
-            len(self.forward_matcher.bl),
-            self.blacklist_meta['date']
-        )
-    
-    def IPC_hosts_info(self):
-        return (
-            os.path.join(self.rootdir, self.confdata['hosts']['data']),
-            self.forward_matcher.hosts.domain_count(),
-            self.hosts_meta['date']
-        )
-    
-    def IPC_get_custom_blacklist(self):
-        return [s.decode("idna") for s in self.forward_matcher.custom_bl]
-    
-    def IPC_get_custom_whitelist(self):
-        return [s.decode("idna") for s in self.forward_matcher.custom_wl]
-    
-    def IPC_update_custom_list(self, custom_bl=None, custom_wl=None):
-        if custom_bl:
-            self.write_file(custom_bl,
-                os.path.join(self.rootdir, self.confdata['custom_blacklist']))
-        if custom_wl:
-            self.write_file(custom_wl,
-                os.path.join(self.rootdir, self.confdata['custom_whitelist']))
-        self.update_forward_matcher()
-        
-    def IPC_socks_proxy_addr(self):
-        return self.socks_proxy.ref().IPC_addr()
-    
-    def IPC_http_proxy_addr(self):
-        return self.http_proxy.ref().IPC_addr()
-    
-    def IPC_shadowsocks_methods(self):
-        return self.cc_channel.ref().IPC_shadowsocks_methods()
-    
-    def IPC_launch_browser(self):
-        if self.browser and self.browser.is_alive():
-            return self.browser.ref().IPC_open_default_page()
-        else:
-            self.run_browser()
-            
-    def IPC_open_admin_url(self):
-        url =  self.webadmin.ref().IPC_url()
-        if self.browser and self.browser.is_alive():
-            return self.browser.ref().IPC_open_url(url)
-        else:
-            self.run_browser(url)
-            
     def IPC_resume_default_config(self):
         conf = os.path.join(self.rootdir, self.conf_file)
         shutil.copy(conf + ".default", conf)
         self.loadconf()
         return self.confdata
     
-    def IPC_hosts_groups(self):
-        ret = []
-        groups = self.hosts_meta.get('groups', {}).keys()
-        for name in groups:
-            if name in self.hosts_disabled_groups:
-                enabled = False
-            else:
-                enabled = True
-            ret.append((name, enabled))
-        return ret
-    
+    def IPC_update_blacklist(self):
+        try:
+            updated = remote_update_blacklist(self.proxy_info(), self.rootdir, self.confdata)
+            if updated:
+                self.update_matcher()
+            return True
+        except Exception, e:
+            print "failed to update blacklist: %s" % str(e)
+            return False
+        
+    def IPC_update_custom_list(self, custom_bl=None, custom_wl=None):
+        if custom_bl:
+            local_update_datafile(u"\n".join(custom_bl),
+                os.path.join(self.rootdir, self.confdata['custom_blacklist']))
+        if custom_wl:
+            local_update_datafile(u"\n".join(custom_wl),
+                os.path.join(self.rootdir, self.confdata['custom_whitelist']))
+        self.update_matcher()
+        
+    def IPC_update_hosts(self):
+        try:
+            updated = remote_update_hosts(self.proxy_info(), self.rootdir, self.confdata)
+            if updated:
+                self.update_matcher()
+            return True
+        except Exception, e:
+            print "failed to update hosts: %s" % str(e)
+            return False 
+        
     def IPC_update_hosts_disabled(self, disabled):
-        self.write_file(disabled,
-                os.path.join(self.rootdir, self.confdata['hosts']['disabled']))
-        self.update_forward_matcher()
-    
+        local_update_datafile(u"\n".join(disabled), os.path.join(self.rootdir, self.confdata['hosts']['disabled']))
+        self.update_matcher()
+        
 def close_std():
     sys.stdin.close()
     sys.stdin = open(os.devnull)
@@ -382,18 +303,16 @@ def close_std():
     sys.stderr = open(os.devnull)
         
 def main():
-    # XXX: this might fix bad file descripter exception caused by freeze_support()
     close_std()
     multiprocessing.freeze_support()
     init_logging() 
     
     global rootdir
-    config = "config.json"
+    conf_file = "config.json"
     os.environ['REQUESTS_CA_BUNDLE'] = \
         os.path.join(rootdir, "ca-bundle.crt").encode(sys.getfilesystemencoding())
-    hub = Hub(rootdir, config)
-    hub.run()
+    coordinator = Coordinator(rootdir, conf_file)
+    coordinator.run()
     
 if __name__ == '__main__':
     main()
-    

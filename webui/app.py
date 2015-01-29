@@ -34,7 +34,7 @@ render = render_mako(
 )
 
 need_reboot = False
-hub_ref = None
+coordinator = None
 
 def change(orig, update):
     newdata = orig.copy()
@@ -52,18 +52,19 @@ def get_int(data, key, default):
         return default
             
 def update_config(update, reboot=True, ipc=True):
-    global hub_ref, need_reboot
+    global coordinator, need_reboot
     
     try:
-        if not change(hub_ref.get('confdata'), update):
+        if not change(coordinator.get('confdata'), update):
             web.header('Content-Type', 'application/json')
             resp = {'message': u'配置没有变化'}
             return json.dumps(resp)
         if ipc:
-            updated = hub_ref.IPC_update_config(update)
+            updated = coordinator.IPC_update_config(update)
         else:
             updated = update
-        hub_ref.get('confdata').update(updated)
+        # update local confdata so webpage displays updated values
+        coordinator.get('confdata').update(updated)
         if reboot:
             need_reboot = True
         web.header('Content-Type', 'application/json')
@@ -91,22 +92,22 @@ class about:
     
 class proxy:
     def GET(self):
-        global hub_ref, need_reboot
+        global coordinator, need_reboot
         
-        shadowsocks_methods = hub_ref.IPC_shadowsocks_methods()
+        shadowsocks_methods = coordinator.IPC_shadowsocks_methods()
         return render.proxy(
             need_reboot=need_reboot,
-            confdata=hub_ref.get('confdata'),
+            confdata=coordinator.get('confdata'),
             shadowsocks_methods=shadowsocks_methods
         )
     
 class blacklist:
     def GET(self):
-        global hub_ref
+        global coordinator
         
-        (_, bl_count, bl_date) = hub_ref.IPC_blacklist_info()
-        custom_bl = hub_ref.IPC_get_custom_blacklist()
-        custom_wl = hub_ref.IPC_get_custom_whitelist()
+        (_, bl_count, bl_date) = coordinator.IPC_blacklist_info()
+        custom_bl = coordinator.IPC_get_custom_blacklist()
+        custom_wl = coordinator.IPC_get_custom_whitelist()
         return render.blacklist(
             bl_count=bl_count,
             bl_date=bl_date,
@@ -116,19 +117,18 @@ class blacklist:
         
 class hosts:
     def GET(self):
-        global hub_ref, need_reboot
+        global coordinator, need_reboot
         
-        (_, domain_count, hosts_date) = hub_ref.IPC_hosts_info()
-        groups = hub_ref.IPC_hosts_groups()
+        (_, count, groups, date) = coordinator.IPC_hosts_info()
         return render.hosts(
-            domain_count=domain_count,
+            domain_count=count,
             groups=groups,
-            hosts_date=hosts_date,
+            hosts_date=date,
         )
     
 class localproxy_settings:
     def POST(self):
-        global need_reboot, hub_ref
+        global need_reboot, coordinator
         
         data = web.input()
         update = {}
@@ -156,7 +156,7 @@ class localproxy_settings:
         
 class browser_settings:
     def POST(self):
-        global need_reboot, hub_ref
+        global need_reboot, coordinator
         
         data = web.input()
         update = {}
@@ -168,10 +168,10 @@ class browser_settings:
     
 class default_settings:
     def POST(self):
-        global need_reboot, hub_ref
+        global need_reboot, coordinator
         
         try:
-            default = hub_ref.IPC_resume_default_config()
+            default = coordinator.IPC_resume_default_config()
             return update_config(default, reboot=True, ipc=False)
         except Exception, e:
             print str(e)
@@ -182,7 +182,7 @@ class default_settings:
     
 class circumvention_settings:
     def POST(self):
-        global need_reboot, hub_ref
+        global need_reboot, coordinator
         
         data = web.input()
         update = {}
@@ -222,15 +222,15 @@ class circumvention_settings:
     
 class bl:
     def GET(self):
-        global hub_ref
+        global coordinator
         
         web.header("Content-Type", "text/plain; charset=utf-8")
-        return open(hub_ref.IPC_blacklist_info()[0])
+        return open(coordinator.IPC_blacklist_info()[0])
     
     def POST(self):
-        global hub_ref
+        global coordinator
         
-        if hub_ref.IPC_update_blacklist():
+        if coordinator.IPC_update_blacklist():
             web.header('Content-Type', 'application/json')
             resp = {'message': u'黑名单更新成功，已生效'}
             return json.dumps(resp)
@@ -242,13 +242,13 @@ class bl:
     
 class custom_bl:
     def POST(self):
-        global hub_ref
+        global coordinator
         
         try:
             data = web.input()
             custom_bl = data.get('custom_bl').split("\r\n")
             web.header('Content-Type', 'application/json')
-            hub_ref.IPC_update_custom_list(custom_bl=custom_bl)
+            coordinator.IPC_update_custom_list(custom_bl=custom_bl)
             resp = {'message': u'自定义黑名单更新成功，已生效'}
             return json.dumps(resp)
         except:
@@ -259,13 +259,13 @@ class custom_bl:
         
 class custom_wl:
     def POST(self):
-        global hub_ref
+        global coordinator
         
         try:
             data = web.input()
             custom_wl = data.get('custom_wl').split("\r\n")
             web.header('Content-Type', 'application/json')
-            hub_ref.IPC_update_custom_list(custom_wl=custom_wl)
+            coordinator.IPC_update_custom_list(custom_wl=custom_wl)
             resp = {'message': u'自定义白名单更新成功，已生效'}
             return json.dumps(resp)
         except:
@@ -276,15 +276,15 @@ class custom_wl:
         
 class hosts_data:
     def GET(self):
-        global hub_ref
+        global coordinator
         
         web.header("Content-Type", "text/plain; charset=utf-8")
-        return open(hub_ref.IPC_hosts_info()[0])
+        return open(coordinator.IPC_hosts_info()[0])
     
     def POST(self):
-        global hub_ref
+        global coordinator
         
-        if hub_ref.IPC_update_hosts():
+        if coordinator.IPC_update_hosts():
             web.header('Content-Type', 'application/json')
             resp = {'message': u'Host 文件更新成功，已生效'}
             return json.dumps(resp)
@@ -296,16 +296,17 @@ class hosts_data:
         
 class hosts_group:
     def POST(self):
-        global hub_ref
+        global coordinator
         
         try:
-            groups = [g[0] for g in hub_ref.IPC_hosts_groups()]
+            (_, _, groups, _) = coordinator.IPC_hosts_info()
+            groups = [a[0] for a in groups]
             disabled = groups
-            data = web.input()
-            for k in data.keys():
+            data = web.input().keys()
+            for k in data:
                 if k in groups:
                     disabled.remove(k)
-            hub_ref.IPC_update_hosts_disabled(disabled)
+            coordinator.IPC_update_hosts_disabled(disabled)
             web.header('Content-Type', 'application/json')
             resp = {'message': u'Host 配置更新成功，已生效'}
             return json.dumps(resp)
@@ -317,8 +318,8 @@ class hosts_group:
                
                
 def create_app(ref):
-    global hub_ref
-    hub_ref = ref
+    global coordinator
+    coordinator = ref
     return web.application(urls, globals(), autoreload=False).wsgifunc()
 
 if __name__ == '__main__':

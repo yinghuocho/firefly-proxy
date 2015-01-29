@@ -1,41 +1,42 @@
 import os
 import sys
+import time
 import subprocess
 import signal
 
 from gevent.pool import Pool
-import requests
-import grequests
+from geventhttpclient import HTTPClient
+from geventhttpclient.url import URL
+
 from shadowsocks import encrypt, asyncdns, eventloop, tcprelay, udprelay
 
 from gsocks.meek_relay import Relay, MeekRelayFactory
 from gsocks.server import SocksServer
-from lib.ipc import IPC_Host, IPC_Process
-from lib.utils import init_logging
+from lib.ipc import ActorObject, ActorProcess
+from lib.utils import init_logging, load_file, remote_fetch_with_proxy, local_update_datafile
 
-class ShadowSocksChannel(IPC_Process):
-    def __init__(self, hub_ref):
+class ShadowSocksChannel(ActorProcess):
+    def __init__(self, coordinator):
         super(ShadowSocksChannel, self).__init__()
-        self.hub_ref = hub_ref
-        self.process = None
+        self.coordinator = coordinator
+        
+        confdata = self.coordinator.get('confdata')
+        self.ip = confdata['circumvention_proxy_ip']
+        self.port = confdata['circumvention_proxy_port']
+        self.shadowsocksconf = confdata['circumvention_chan_shadowsocks']
         
     def run(self):
         init_logging()
-        confdata = self.hub_ref.get('confdata')
-        proxy_ip = confdata['circumvention_proxy_ip']
-        proxy_port = confdata['circumvention_proxy_port']
-        shadowsocksconf = confdata['circumvention_chan_shadowsocks']
-        
-        key = shadowsocksconf['password']
-        method = shadowsocksconf['method']
+        key = self.shadowsocksconf['password']
+        method = self.shadowsocksconf['method']
         
         config = {
-            'local_address': proxy_ip,
-            'local_port': proxy_port,
-            'server': shadowsocksconf['server_name'],
-            'server_port': shadowsocksconf['server_port'],
-            'timeout': shadowsocksconf['timeout'],
-            'fast_open': shadowsocksconf['fast_open'],
+            'local_address': self.ip,
+            'local_port': self.port,
+            'server': self.shadowsocksconf['server_name'],
+            'server_port': self.shadowsocksconf['server_port'],
+            'timeout': self.shadowsocksconf['timeout'],
+            'fast_open': self.shadowsocksconf['fast_open'],
             'password': key,
             'method': method,
         }
@@ -52,40 +53,54 @@ class ShadowSocksChannel(IPC_Process):
             tcp_server.close(next_tick=True)
             udp_server.close(next_tick=True)
         signal.signal(getattr(signal, 'SIGQUIT', signal.SIGTERM), handler)
-        loop.run()
+        loop.run()   
         
     def IPC_url(self):
-        confdata = self.hub_ref.get('confdata')
-        proxy_ip = confdata['circumvention_proxy_ip']
-        proxy_port = confdata['circumvention_proxy_port']
-        return "socks5://%s:%d" % (proxy_ip, proxy_port)
-        
+        return "socks5://%s:%d" % (self.ip, self.port) 
+    
+def remote_update_meek_relays(proxy_info, rootdir, confdata):
+    data = remote_fetch_with_proxy(confdata['circumvention_chan_meek']['url'], proxy_info)
+    data = data.split("\n")
+    data = [s.decode("utf-8") for s in data if s]
+    filepath = os.path.join(rootdir, confdata['circumvention_chan_meek']['relays'])
+    local = load_file(filepath, idna=False)
+    if data == local or not data:
+        return False
+    else:
+        local_update_datafile(u"\n".join(data), filepath)
+        return True
 
-class MeekChannel(IPC_Process):
+class MeekChannel(ActorProcess):
     timeout = 60
     
-    def __init__(self, hub_ref):
+    def __init__(self, coordinator):
         super(MeekChannel, self).__init__()
-        self.hub_ref = hub_ref
-        self.process = None
+        self.coordinator = coordinator
+        
+        confdata = self.coordinator.get('confdata')
+        self.rootdir = self.coordinator.get('rootdir')
+        self.ip = confdata['circumvention_proxy_ip']
+        self.port = confdata['circumvention_proxy_port']
+        self.meekconf = confdata['circumvention_chan_meek']
+        self.ready = False
         
     def _test_relay(self, relay, result):
         # We don't want go to system proxies.
-        s = requests.Session()
-        s.trust_env = False
-        verify = "verify" in relay.properties
-        stream = "stream" in relay.properties
+        # s.trust_env = False
+        insecure = "verify" not in relay.properties
         headers = {"Host": relay.hostname}
+        url = URL(relay.fronturl)
+        client = HTTPClient.from_url(url, headers=headers, insecure=insecure, connection_timeout=10)
         for _ in range(2):
             try:
-                reqs = [grequests.get(relay.fronturl, headers=headers,
-                    verify=verify, stream=stream, timeout=5, session=s)]
-                resp = grequests.map(reqs, stream=stream)[0]
-                if resp.status_code == requests.codes.ok:  # @UndefinedVariable
+                resp = client.get(url.request_uri)
+                succ = (resp.status_code == 200)  # @UndefinedVariable
+                resp.release()
+                if succ:
                     result.append(relay)
                     return
-            except:
-                pass
+            except Exception, e:
+                print str(e)
         print "meek relay (%s,%s) is not valid" % (relay.fronturl, relay.hostname)
         
     def _valid_relays(self, relays):
@@ -100,33 +115,40 @@ class MeekChannel(IPC_Process):
                 (fields[0], fields[1], fields[2:], 0)
             ))
             p.spawn(self._test_relay, Relay(**value), valid_relays)
-            valid_relays.append(Relay(**value))
         p.join()
         return valid_relays
         
     def run(self):
         init_logging()
-        confdata = self.hub_ref.get('confdata')
-        proxy_ip = confdata['circumvention_proxy_ip']
-        proxy_port = confdata['circumvention_proxy_port']
-        meekconf = confdata['circumvention_chan_meek']
-        
-        self.meekfactory = MeekRelayFactory(
-            self._valid_relays(meekconf['relays']), self.timeout)
-        self.proxy = SocksServer(proxy_ip, proxy_port, self.meekfactory)
+        relays = load_file(os.path.join(self.rootdir, self.meekconf['relays']), idna=False)
+        self.meekfactory = MeekRelayFactory(self._valid_relays(relays), self.timeout)
+        self.proxy = SocksServer(self.ip, self.port, self.meekfactory)
+        self.ready = True
         self.proxy.run()
         
     def IPC_url(self):
-        confdata = self.hub_ref.get('confdata')
-        proxy_ip = confdata['circumvention_proxy_ip']
-        proxy_port = confdata['circumvention_proxy_port']
-        return "socks5://%s:%d" % (proxy_ip, proxy_port)
+        while not self.ready:
+            time.sleep(0.2)
+        return "socks5://%s:%d" % (self.ip, self.port)
+    
+    def IPC_update_relays(self):
+        print "------------------"
+        relays = load_file(os.path.join(self.rootdir, self.meekconf['relays']), idna=False)
+        valid_relays = self._valid_relays(relays)
+        if valid_relays:
+            print valid_relays
+            self.meekfactory.set_relays(valid_relays)
+            return True
+        return False
         
-class SSHChannel(IPC_Host):
-    def __init__(self, hub_ref):
+class SSHChannel(ActorObject):
+    def __init__(self, coordinator):
         super(SSHChannel, self).__init__()
-        self.hub_ref = hub_ref
-        self.process = None
+        self.coordinator = coordinator
+        confdata = self.coordinator.get('confdata')
+        self.ip = confdata['circumvention_proxy_ip']
+        self.port = confdata['circumvention_proxy_port']
+        self.sshconf = confdata['circumvention_chan_ssh']
         
     def _putty_args(self, executable, proxy_ip, proxy_port, sshconf):
         part1 = [
@@ -146,33 +168,28 @@ class SSHChannel(IPC_Host):
             part2 = ["-pw", sshconf['password']]
             
         part3 = ["%s@%s" % (sshconf['username'], sshconf['server_name'])]
-        return [s.encode(sys.getfilesystemencoding()) for s in part1+part2+part3]
+        return [s.encode(sys.getfilesystemencoding()) for s in part1 + part2 + part3]
         
-    def start(self):
-        rootdir = self.hub_ref.get('rootdir')
-        confdata = self.hub_ref.get('confdata')
-        proxy_ip = confdata['circumvention_proxy_ip']
-        proxy_port = confdata['circumvention_proxy_port']
-        sshconf = confdata['circumvention_chan_ssh']
-        
+    def start(self):        
+        rootdir = self.coordinator.get('rootdir')
         args = {}
         kwargs = {}
         if subprocess.mswindows: 
             executable = os.path.join(rootdir, "tools/putty.exe")
-            args = self._putty_args(executable, proxy_ip, proxy_port, sshconf)
+            args = self._putty_args(executable, self.ip, self.port, self.sshconf)
             su = subprocess.STARTUPINFO() 
             su.dwFlags |= subprocess.STARTF_USESHOWWINDOW 
             su.wShowWindow = subprocess.SW_HIDE 
             kwargs['startupinfo'] = su 
         self.process = subprocess.Popen(args, **kwargs)
-        self.start_IPC() 
+        self.start_actor() 
         
     def join(self):
         if self.process:
             self.process.wait()
             
     def terminate(self):
-        self.quit_IPC()
+        self.quit_actor()
         if self.process:
             self.process.terminate()
     
@@ -183,43 +200,44 @@ class SSHChannel(IPC_Host):
             return False
         
     def IPC_url(self):
-        confdata = self.hub_ref.get('confdata')
-        proxy_ip = confdata['circumvention_proxy_ip']
-        proxy_port = confdata['circumvention_proxy_port']
-        return "socks5://%s:%d" % (proxy_ip, proxy_port)
-
-class CircumventionChannel(IPC_Host):
+        return "socks5://%s:%d" % (self.ip, self.port)
+    
+class CircumventionChannel(ActorObject):
     supported = {
         'ssh': SSHChannel,
         'meek': MeekChannel,
         'shadowsocks': ShadowSocksChannel,
     }
 
-    def __init__(self, hub_ref):
+    def __init__(self, coordinator):
         super(CircumventionChannel, self).__init__()
-        self.hub_ref = hub_ref
-        confdata = self.hub_ref.get('confdata')
-        self.channel = self.supported[confdata['circumvention_chan_type']](hub_ref)
+        self.coordinator = coordinator
+        confdata = self.coordinator.get('confdata')
+        self.type = confdata['circumvention_chan_type']
+        self.channel = self.supported[self.type](coordinator)
         
     def start(self):
         self.channel.start()
-        self.start_IPC()
+        self.start_actor()
     
     def terminate(self):
-        self.quit_IPC()
+        self.quit_actor()
         self.channel.terminate()
     
     def join(self):
         self.channel.join()
-    
+        
     def IPC_url(self):
         if self.channel.is_alive():
             return self.channel.ref().IPC_url()
         else:
             return None
-    
+        
     def IPC_shadowsocks_methods(self):
         return encrypt.method_supported.keys()
     
-    
+    def IPC_update_meek_relays(self, relays):
+        if self.type != "meek":
+            return False
+        return self.channel.ref().IPC_update_relays(relays)
         
