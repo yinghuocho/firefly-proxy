@@ -27,6 +27,9 @@ class LoggerWriter:
         if message != '\n':
             self.logger.log(self.level, message)
             
+    def flush(self):
+        pass
+            
 def init_logging():
     if len(sys.argv)>1 and sys.argv[1] == "--debug":
         logger = logging.getLogger()

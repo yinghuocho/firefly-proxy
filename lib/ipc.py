@@ -94,9 +94,12 @@ class ActorProcess(ActorObject):
     
     def _run(self):
         # in child process, start IPC_ref, so parent can invoke IPC_xxx interfaces.
-        self.start_actor()
-        self.run()
-    
+        try:
+            self.start_actor()
+            self.run()
+        except KeyboardInterrupt:
+            print "interrupt received ..."
+            
     def run(self):
         raise NotImplementedError
     
