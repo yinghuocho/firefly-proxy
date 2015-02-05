@@ -51,7 +51,7 @@ def get_int(data, key, default):
         print e
         return default
             
-def update_config(update, reboot=True, ipc=True):
+def update_config(update, reboot=True, ipc=True, reload_hosts=False):
     global coordinator, need_reboot
     
     try:
@@ -63,6 +63,9 @@ def update_config(update, reboot=True, ipc=True):
             updated = coordinator.IPC_update_config(update)
         else:
             updated = update
+        if reload_hosts:
+            coordinator.IPC_update_hosts(remote=False)
+            
         # update local confdata so webpage displays updated values
         coordinator.get('confdata').update(updated)
         if reboot:
@@ -119,12 +122,25 @@ class hosts:
     def GET(self):
         global coordinator, need_reboot
         
-        (_, count, groups, date) = coordinator.IPC_hosts_info()
+        (_, enable, count, groups, date) = coordinator.IPC_hosts_info()
         return render.hosts(
+            enable=enable,
             domain_count=count,
             groups=groups,
             hosts_date=date,
         )
+        
+    def POST(self):
+        data = web.input()
+        hosts = coordinator.get('confdata')['hosts'].copy()
+        if data.get('enable'):
+            hosts['enable'] = 1
+        else:
+            hosts['enable'] = 0
+        update = {
+            'hosts': hosts
+        }
+        return update_config(update, reboot=False, reload_hosts=True)
     
 class localproxy_settings:
     def POST(self):
@@ -299,7 +315,7 @@ class hosts_group:
         global coordinator
         
         try:
-            (_, _, groups, _) = coordinator.IPC_hosts_info()
+            (_, _, _, groups, _) = coordinator.IPC_hosts_info()
             groups = [a[0] for a in groups]
             disabled = groups
             data = web.input().keys()

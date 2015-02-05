@@ -23,6 +23,22 @@
     </form>
     <br>
     
+    <form action="/hosts" method="post" role="form">
+        <div class="checkbox">
+            <label><input type="checkbox" id="enable" name="enable"
+            % if enable:
+                checked
+            % endif
+            >启用（选中）或关闭（取消）Hosts 翻墙</label>
+        </div>
+        <div class="row">
+            <button type="submit" class="btn btn-default btn-sm">确定</button>
+            <span class="small alert alert-success" style="display:none"></span>
+            <span class="small alert alert-danger" style="display:none"></span>
+        </div>
+    </form>
+    
+    % if enable:
     <h3 class="page-header"><a id="bl">Hosts 网站列表</a></h3>
     <p>
         启用（选中）或关闭（取消）指定网站相关的 Hosts 翻墙
@@ -34,6 +50,9 @@
             % if status:
                 checked
             % endif
+            % if not enable:
+                disabled
+            % endif
                 >${groupname}</label>
             </div>
         % endfor
@@ -44,6 +63,7 @@
             <span class="small alert alert-danger" style="display:none"></span>
         </div>
     </form>
+    % endif
 </%block>
 
 <%block name="extrajs">

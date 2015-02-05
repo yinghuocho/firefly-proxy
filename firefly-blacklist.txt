@@ -1,4 +1,4 @@
-# 2014-11-19 by yinghuocho@gmail.com
+# 2015-02-04 by yinghuocho@gmail.com
 # collected from autoproxy-gfwlist and other sources
 
 google.com
@@ -5874,6 +5874,7 @@ gmailproxy.com
 gnway.net
 gob.ve
 godsdirectcontact.org
+gofirefly.org
 gofollow.info
 go-fuzoku.tv
 goingthere.org

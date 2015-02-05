@@ -28,7 +28,8 @@ def create_hosts(rootdir, confdata):
     f.close()
     disabled = load_file(os.path.join(rootdir, confdata['hosts']['disabled']))
     data = load_file(os.path.join(rootdir, confdata['hosts']['data']))
-    return FireflyHosts(data, meta, disabled)
+    enable = int(confdata['hosts']['enable'])!=0 
+    return FireflyHosts(enable, data, meta, disabled)
 
 def detect_ipv6():
     try:
@@ -41,6 +42,7 @@ def detect_ipv6():
 def hosts_info(rootdir, confdata, hosts):
     return (
         os.path.join(rootdir, confdata['hosts']['data']),
+        hosts.enable,
         hosts.count(),
         hosts.groups(),
         hosts.meta['date'],
@@ -58,7 +60,8 @@ def remote_update_hosts(proxies, rootdir, confdata):
     return remote_update_datafile(proxies, meta, metafile, metaurl, datafile, dataurl)
 
 class FireflyHosts(object):
-    def __init__(self, data, meta, disabled):
+    def __init__(self, enable, data, meta, disabled):
+        self.enable = enable
         self.data = defaultdict(list)
         self.meta = meta
         self.disabled = set(disabled)
@@ -128,6 +131,10 @@ class FireflyHosts(object):
             return v4 
             
     def find(self, host):
+        if not self.enable:
+            print "hosts disabled ..."
+            return None
+        
         if self.has_ipv6 == None:
             self.has_ipv6 = detect_ipv6()
         

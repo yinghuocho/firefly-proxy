@@ -282,11 +282,11 @@ class Coordinator(ActorObject):
                 os.path.join(self.rootdir, self.confdata['custom_whitelist']))
         self.update_matcher()
         
-    def IPC_update_hosts(self):
+    def IPC_update_hosts(self, remote=True):
         try:
-            updated = remote_update_hosts(self.proxy_info(), self.rootdir, self.confdata)
-            if updated:
-                self.update_matcher()
+            if remote:
+                remote_update_hosts(self.proxy_info(), self.rootdir, self.confdata)
+            self.update_matcher()    
             return True
         except Exception, e:
             print "failed to update hosts: %s" % str(e)

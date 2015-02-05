@@ -35,6 +35,7 @@
         "data": "firefly-hosts.txt",
         "data_url": "http://gofirefly.org/hosts/firefly-hosts.txt",
         "disabled": "firefly-hosts-disabled.txt",
+        "enable": 1,
         "meta": "firefly-hosts.meta.json",
         "meta_url": "http://gofirefly.org/hosts/firefly-hosts.meta.json"
     },

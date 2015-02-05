@@ -142,6 +142,11 @@ class Coordinator(ActorObject):
         self.backup_conf()
         self.start_cc_channel()
         self.start_local_proxy()
+        
+        if self.cc_channel.type == "meek":
+            self.update_meek_relays()
+        self.check_and_update_blacklist()
+        self.check_and_update_hosts()
             
     # IPC interfaces
     def IPC_circumvention_url(self):
