@@ -7,6 +7,7 @@ import hashlib
 import shutil
 import urlparse
 import urllib
+import os
 
 from httplib2 import HTTPConnectionWithTimeout, HTTPSConnectionWithTimeout
     
@@ -17,6 +18,12 @@ def idle_port():
     port = s.getsockname()[1]
     s.close()
     return port
+
+def set_ca_certs_env(filepath):
+    os.environ['CA_BUNDLE'] = filepath
+    
+def get_ca_certs_env():
+    return os.getenv('CA_BUNDLE', "")
 
 class LoggerWriter:
     def __init__(self, logger, level):
@@ -39,6 +46,12 @@ def init_logging():
         logger.addHandler(ch)
         sys.stdout = LoggerWriter(logger, logging.DEBUG)
         sys.stderr = LoggerWriter(logger, logging.DEBUG)
+    else:
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        ch = logging.StreamHandler()
+        ch.setFormatter(logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'))
+        logger.addHandler(ch)
         
 def load_file(filename, idna=True):
     f = codecs.open(filename, "r", "utf-8")
@@ -70,19 +83,28 @@ def parse_url(url):
     path = urlparse.urlunsplit(("", "", u.path, u.query, ""))
     return str(scheme), str(urllib.quote(host)), port, str(urllib.quote(path))
 
-def remote_fetch_with_proxy(url, proxy_info):        
+def remote_fetch_with_proxy(url, proxy_info):      
     scheme, host, port, path = parse_url(url)
     if scheme == "http":
         f = HTTPConnectionWithTimeout
     else:
         f = HTTPSConnectionWithTimeout
-        
-    conn = f(host, port=port, timeout=5, proxy_info=proxy_info)
-    conn.request("GET", path)
-    resp = conn.getresponse()
-    data = resp.read()
-    resp.close()
-    return data
+    
+    retry = 2
+    while True:
+        try:
+            conn = f(host, port=port, timeout=10, proxy_info=proxy_info)
+            conn.request("GET", path)
+            resp = conn.getresponse()
+            data = resp.read()
+            resp.close()
+            return data
+        except Exception, e:
+            if retry > 0:
+                print str(e), "give it another chance ..."
+                retry -= 1
+            else:
+                raise
 
 def remote_update_datafile(proxy, meta, metafile, metaurl, datafile, dataurl):
     updated = False
@@ -106,7 +128,41 @@ def local_update_datafile(data, datafile):
     f.write(data)
     f.close()
     shutil.move(filename, datafile)
-
     
-        
+def singleton_check(rootdir):
+    f = None
+    lock = os.path.join(rootdir, os.name+"lock")
+    if os.name == 'nt':
+        try:
+            if os.path.exists(lock):
+                os.unlink(lock)
+            f = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+        except EnvironmentError, e:
+            if e.errno != 13:
+                print str(e)
+            return False
+    else:
+        try:
+            import fcntl
+            f = open(lock, 'w')
+            fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except EnvironmentError, e:
+            if not f is not None:
+                print str(e)
+            return False
+    return f
+
+def singleton_clean(rootdir, f):
+    lock = os.path.join(rootdir, os.name+"lock")
+    try:
+        if os.name == 'nt':
+            os.close(f)
+            os.unlink(lock)
+        else:
+            import fcntl
+            fcntl.lockf(f, fcntl.LOCK_UN)
+            f.close() # ???
+            os.unlink(lock)
+    except Exception, e:
+        print str(e)
     

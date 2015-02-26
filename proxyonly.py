@@ -4,8 +4,8 @@ import time
 import json
 import codecs
 import shutil
+import threading
 from datetime import datetime, date
-import multiprocessing
 
 from httplib2 import socks, ProxyInfo
 
@@ -17,7 +17,7 @@ else:
 rootdir = rootdir.decode(sys.getfilesystemencoding())
 sys.path.append(rootdir)
 
-from lib.utils import init_logging, local_update_datafile
+from lib.utils import init_logging, local_update_datafile, set_ca_certs_env, singleton_check, singleton_clean
 from lib.ipc import ActorObject
 from component.circumvention import CircumventionChannel, remote_update_meek_relays
 from component.local import HTTPProxy, SocksProxy
@@ -54,6 +54,10 @@ class Coordinator(ActorObject):
         shutil.copy(conf + ".last", conf)
         
     def initialize(self):
+        self.singleton = singleton_check(self.rootdir)
+        if not self.singleton:
+            sys.exit(-1)
+        
         self.loadconf()
         self.ref().share('rootdir', self.rootdir)
         self.ref().share('confdata', self.confdata)
@@ -91,7 +95,7 @@ class Coordinator(ActorObject):
             return ProxyInfo(socks.PROXY_TYPE_SOCKS5, ip, port, True, None, None)
         elif self.http_proxy:
             ip, port = self.http_proxy.ref().IPC_addr()
-            return (socks.PROXY_TYPE_HTTP, ip, port, True, None, None)
+            return ProxyInfo(socks.PROXY_TYPE_HTTP, ip, port, True, None, None)
         else:
             return None
                 
@@ -131,6 +135,13 @@ class Coordinator(ActorObject):
         except Exception, e:
             print "failed to update meek relays: %s" % str(e)
         
+    def check_for_update(self):
+        time.sleep(20)
+        if self.cc_channel.type == "meek":
+            self.update_meek_relays()
+        self.check_and_update_blacklist()
+        self.check_and_update_hosts()
+        
     def run(self):
         try:
             self.initialize()
@@ -143,10 +154,21 @@ class Coordinator(ActorObject):
         self.start_cc_channel()
         self.start_local_proxy()
         
-        if self.cc_channel.type == "meek":
-            self.update_meek_relays()
-        self.check_and_update_blacklist()
-        self.check_and_update_hosts()
+        t = threading.Thread(target=self.check_for_update)
+        t.daemon = True
+        t.start()
+        
+    def end(self):
+        if self.cc_channel:
+            self.cc_channel.terminate()
+            self.cc_channel.join()
+        if self.http_proxy:
+            self.http_proxy.terminate()
+            self.http_proxy.join()
+        if self.socks_proxy:
+            self.socks_proxy.terminate()
+            self.socks_proxy.join()
+        singleton_clean(self.rootdir, self.singleton)
             
     # IPC interfaces
     def IPC_circumvention_url(self):
@@ -239,12 +261,15 @@ def main():
     
     global rootdir
     conf_file = "config.json"
-    os.environ['REQUESTS_CA_BUNDLE'] = \
-        os.path.join(rootdir, "ca-bundle.crt").encode(sys.getfilesystemencoding())
+    set_ca_certs_env(os.path.join(rootdir, "cacert.pem").encode(sys.getfilesystemencoding()))
     coordinator = Coordinator(rootdir, conf_file)
     coordinator.run()
-    while True:
-        time.sleep(10)
+    try:
+        while True:
+            time.sleep(10)
+    except:
+        print "quit ..."
+        coordinator.end()
     
 if __name__ == '__main__':
     main()

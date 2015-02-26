@@ -29,11 +29,11 @@ class HTTP2SocksSmartApplication(ProxyApplication):
         return app.application(environ, start_response)
         
     def forward(self, scheme, host, port, environ, start_response):
-        forwarder = self.find_forwarder(scheme.name)
+        forwarder = self.find_forwarder(scheme.scheme)
         if forwarder:
             return forwarder(scheme.data, host, port, environ, start_response)
         else:
-            log.error("Unsupported forwarding scheme %s" % scheme.name)
+            log.error("Unsupported forwarding scheme %s" % scheme.scheme)
             start_response("500 Internal Server Error", [("Content-Type", "text/plain; charset=utf-8")])
             return ["Internal Server Error"]
         

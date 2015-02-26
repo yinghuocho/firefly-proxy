@@ -59,8 +59,8 @@ class ProxyHandler(WSGIHandler):
                 break
             
             if self.socket and hasattr(self, 'command') and \
-                        self.command == "CONNECT" and self.environ.get('HTTPS_CONN', None):
-                pipe_socket(self.socket, self.environ.get('HTTPS_CONN'))
+                        self.command == "CONNECT" and self.environ.get('TUNNEL_CONN', None):
+                pipe_socket(self.socket, self.environ.get('TUNNEL_CONN'))
         finally:
             if self.socket is not None:
                 try:
@@ -123,20 +123,27 @@ def reconstruct_url(environ):
     return url
 
 def get_destination(environ):
-    scheme = "http"
-    if environ["REQUEST_METHOD"] == "CONNECT":
-        scheme = "https"
+    http_host = environ.get('HTTP_HOST', '').lower()
+    http_host_split = http_host.split(":")
+    path_info = environ.get('PATH_INFO', '').lower()
+    if path_info.startswith("http"):
+        path_info = urlparse.urlparse(path_info).netloc
+    path_info_split = path_info.split(":")
     
-    if environ.get('HTTP_HOST', ''):
-        url = scheme + "://" + environ['HTTP_HOST']
+    if len(http_host_split) == 2:
+        return http_host_split[0], int(http_host_split[1])
+    if len(path_info_split) == 2:
+        return path_info_split[0], int(path_info_split[1])
+    
+    # no explicit port, if CONNECT cmd, then prefer 443, else 80 
+    if environ["REQUEST_METHOD"] == "CONNECT":
+        port = 443
     else:
-        url = scheme + "://" + environ.get('PATH_INFO')
-    u = urlparse.urlparse(url)
-    host = u.hostname
-    if u.port:
-        port = int(u.port)
+        port = 80
+    if http_host:
+        host = http_host
     else:
-        port = [80, 443][scheme == "https"]
+        host = path_info
     return host, port
 
 BLACKLIST_HEADERS = (
@@ -202,18 +209,18 @@ class ProxyApplication(object):
             yield "Internal Server Error"
             return
         
-    def https(self, environ, start_response):
+    def tunnel(self, environ, start_response):
         try:
             host, port = get_destination(environ)
-            log.info("HTTP request to (%s:%d)" % (host, port))
+            log.info("CONNECT request to (%s:%d)" % (host, port))
         except Exception, e:
-            log.error("[Exception][https]: %s" % str(e))
+            log.error("[Exception][tunnel]: %s" % str(e))
             start_response("400 Bad Request", [("Content-Type", "text/plain; charset=utf-8")])
             return ["Bad Request"]
         
         try:
-            https_conn = socket.create_connection((host, port), timeout=self.timeout)
-            environ['HTTPS_CONN'] = https_conn
+            tunnel_conn = socket.create_connection((host, port), timeout=self.timeout)
+            environ['TUNNEL_CONN'] = tunnel_conn
             start_response("200 Connection established", [])
             return []
         except socket.timeout:  # @UndefinedVariable
@@ -227,7 +234,7 @@ class ProxyApplication(object):
 
     def application(self, environ, start_response):
         if environ["REQUEST_METHOD"] == "CONNECT":
-            return self.https(environ, start_response)
+            return self.tunnel(environ, start_response)
         else:
             return self.http(environ, start_response)
         

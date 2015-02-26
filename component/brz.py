@@ -5,6 +5,7 @@ import subprocess
 import codecs
 import urllib
 import urlparse
+import webbrowser
 
 from lib.ipc import ActorObject
 
@@ -149,6 +150,9 @@ class Browser(ActorObject):
             addrs[HTTP] = self.coordinator.IPC_http_proxy_addr()
         if self.socks_proxy_enabled:
             addrs[SOCKS5] = self.coordinator.IPC_socks_proxy_addr()
+        if not addrs:
+            webbrowser.open(url)
+            return None
         
         browsers = []
         for (name, executable, default, _) in iterate_browsers():

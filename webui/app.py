@@ -112,6 +112,7 @@ class blacklist:
         custom_bl = coordinator.IPC_get_custom_blacklist()
         custom_wl = coordinator.IPC_get_custom_whitelist()
         return render.blacklist(
+            need_reboot=need_reboot,
             bl_count=bl_count,
             bl_date=bl_date,
             custom_bl=u"\n".join(custom_bl),
@@ -124,6 +125,7 @@ class hosts:
         
         (_, enable, count, groups, date) = coordinator.IPC_hosts_info()
         return render.hosts(
+            need_reboot=need_reboot,
             enable=enable,
             domain_count=count,
             groups=groups,

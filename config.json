@@ -28,8 +28,8 @@
     "circumvention_proxy_port": 20151,
     "custom_blacklist": "custom-blacklist.txt",
     "custom_whitelist": "custom-whitelist.txt",
-    "enable_http_proxy": 0,
-    "enable_socks_proxy": 1,
+    "enable_http_proxy": 1,
+    "enable_socks_proxy": 0,
     "home_page": "webui/static/html/ifanqiang.html",
     "hosts": {
         "data": "firefly-hosts.txt",

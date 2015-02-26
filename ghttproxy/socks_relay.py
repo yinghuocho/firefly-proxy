@@ -39,11 +39,11 @@ class HTTP2SocksProxyApplication(ProxyApplication):
                 socksconn.close()
             return None
 
-    def https(self, environ, start_response):
+    def tunnel(self, environ, start_response):
         try:
             host, port = get_destination(environ)
         except Exception, e:
-            log.error("[Exception][https]: %s" % str(e))
+            log.error("[Exception][tunnel]: %s" % str(e))
             start_response("400 Bad Request", [("Content-Type", "text/plain; charset=utf-8")])
             return ["Bad Request"]
         
@@ -52,7 +52,7 @@ class HTTP2SocksProxyApplication(ProxyApplication):
             start_response("500 Internal Server Error", [("Content-Type", "text/plain; charset=utf-8")])
             return ["Internal Server Error"]
         else:
-            environ['HTTPS_CONN'] = socksconn
+            environ['TUNNEL_CONN'] = socksconn
             start_response("200 Connection Established", [])
             return []
         

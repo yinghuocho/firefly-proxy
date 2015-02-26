@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 import subprocess
 import signal
 
@@ -13,7 +12,7 @@ from shadowsocks import encrypt, asyncdns, eventloop, tcprelay, udprelay
 from gsocks.meek_relay import Relay, MeekRelayFactory
 from gsocks.server import SocksServer
 from lib.ipc import ActorObject, ActorProcess
-from lib.utils import init_logging, load_file, remote_fetch_with_proxy, local_update_datafile
+from lib.utils import init_logging, load_file, remote_fetch_with_proxy, local_update_datafile, get_ca_certs_env
 
 class ShadowSocksChannel(ActorProcess):
     def __init__(self, coordinator):
@@ -85,12 +84,17 @@ class MeekChannel(ActorProcess):
         self.ready = False
         
     def _test_relay(self, relay, result):
-        # We don't want go to system proxies.
-        # s.trust_env = False
         insecure = "verify" not in relay.properties
         headers = {"Host": relay.hostname}
         url = URL(relay.fronturl)
-        client = HTTPClient.from_url(url, headers=headers, insecure=insecure, connection_timeout=10)
+        client = HTTPClient.from_url(
+            url, 
+            headers=headers, 
+            insecure=insecure, 
+            connection_timeout=10,
+            network_timeout=10,
+            ssl_options={'ca_certs': get_ca_certs_env()}
+        )
         for _ in range(2):
             try:
                 resp = client.get(url.request_uri)
@@ -121,18 +125,15 @@ class MeekChannel(ActorProcess):
     def run(self):
         init_logging()
         relays = load_file(os.path.join(self.rootdir, self.meekconf['relays']), idna=False)
-        self.meekfactory = MeekRelayFactory(self._valid_relays(relays), self.timeout)
+        self.meekfactory = MeekRelayFactory(self._valid_relays(relays), get_ca_certs_env(), self.timeout)
         self.proxy = SocksServer(self.ip, self.port, self.meekfactory)
         self.ready = True
         self.proxy.run()
         
     def IPC_url(self):
-        while not self.ready:
-            time.sleep(0.2)
         return "socks5://%s:%d" % (self.ip, self.port)
     
     def IPC_update_relays(self):
-        print "------------------"
         relays = load_file(os.path.join(self.rootdir, self.meekconf['relays']), idna=False)
         valid_relays = self._valid_relays(relays)
         if valid_relays:

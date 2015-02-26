@@ -65,10 +65,10 @@ class FireflyHTTPApplication(HTTP2SocksSmartApplication):
             yield "Internal Server Error"
             return
         
-    def forward_hosts_https(self, addrs, host, port, environ, start_response):
+    def forward_hosts_tunnel(self, addrs, host, port, environ, start_response):
         try:
-            https_conn = create_connection_hosts(addrs, port, self.timeout)
-            environ['HTTPS_CONN'] = https_conn
+            tunnel_conn = create_connection_hosts(addrs, port, self.timeout)
+            environ['TUNNEL_CONN'] = tunnel_conn
             start_response("200 Connection established", [])
             return []
         except socket.timeout:  # @UndefinedVariable
@@ -80,7 +80,7 @@ class FireflyHTTPApplication(HTTP2SocksSmartApplication):
         
     def forward_hosts(self, addrs, host, port, environ, start_response):
         if environ["REQUEST_METHOD"] == "CONNECT":
-            return self.forward_hosts_https(addrs, host, port, environ, start_response)
+            return self.forward_hosts_tunnel(addrs, host, port, environ, start_response)
         else:
             return self.forward_hosts_http(addrs, host, port, environ, start_response)
 

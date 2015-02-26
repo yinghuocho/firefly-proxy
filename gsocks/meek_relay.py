@@ -42,11 +42,15 @@ class HTTPClientPool:
     def __init__(self):
         self.pool = defaultdict(LifoQueue)
         
-    def get(self, relay, timeout):
+    def get(self, relay, ca_certs, timeout):
         try:
             return self.pool[relay.fronturl].get(block=False)
         except gevent.queue.Empty:
             insecure = "verify" not in relay.properties
+            if ca_certs:
+                ssl_options = {'ca_certs': ca_certs}
+            else:
+                ssl_options = {}
             conn = HTTPClient.from_url(
                 URL(relay.fronturl), 
                 insecure=insecure,
@@ -54,6 +58,7 @@ class HTTPClientPool:
                 connection_timeout=timeout,
                 network_timeout=timeout,
                 concurrency=1,
+                ssl_options=ssl_options
             )
             return conn
         
@@ -69,17 +74,9 @@ class MeekSession(RelaySession):
         self.meek = meek
         self.meektimeout = timeout
         self.relay = self.meek.select_relay()
-        
-#         insecure = "verify" not in self.relay.properties
-#         self.httpclient = HTTPClient.from_url(
-#             URL(self.relay.fronturl), 
-#             insecure=insecure,
-#             block_size=MAX_PAYLOAD_LENGTH,
-#             connection_timeout=self.meektimeout,
-#             network_timeout=self.meektimeout,
-#             concurrency=1,
-#         )
-        self.httpclient = self.conn_pool.get(self.relay, self.meektimeout)
+        self.ca_certs = self.meek.ca_certs
+    
+        self.httpclient = self.conn_pool.get(self.relay, self.ca_certs, self.meektimeout)
         
         self.udpsock = None
         self.allsocks = [self.socksconn]
@@ -345,9 +342,10 @@ class MeekSession(RelaySession):
         self.conn_pool.release(self.relay, self.httpclient)
         
 class MeekRelayFactory(RelayFactory):
-    def __init__(self, relays, timeout=60):     
+    def __init__(self, relays, ca_certs, timeout=60):     
         self.relays = relays
         self.timeout = timeout
+        self.ca_certs = ca_certs
         
     def set_relays(self, relays):
         self.relays = relays

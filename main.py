@@ -3,8 +3,10 @@ import sys
 import json
 import codecs
 import shutil
+import time
 from datetime import datetime, date
 import multiprocessing
+import threading
 
 from httplib2 import socks, ProxyInfo
 
@@ -16,7 +18,7 @@ else:
 rootdir = rootdir.decode(sys.getfilesystemencoding())
 sys.path.append(rootdir)
 
-from lib.utils import init_logging, local_update_datafile
+from lib.utils import init_logging, local_update_datafile, set_ca_certs_env, singleton_check, singleton_clean
 from lib.ipc import ActorObject
 from component.ui import UI
 from component.admin import Webadmin
@@ -60,6 +62,10 @@ class Coordinator(ActorObject):
         shutil.copy(conf + ".last", conf)
         
     def initialize(self):
+        self.singleton = singleton_check(self.rootdir)
+        if not self.singleton:
+            sys.exit(-1)
+        
         self.loadconf()
         self.ref().share('rootdir', self.rootdir)
         self.ref().share('confdata', self.confdata)
@@ -105,7 +111,7 @@ class Coordinator(ActorObject):
             return ProxyInfo(socks.PROXY_TYPE_SOCKS5, ip, port, True, None, None)
         elif self.http_proxy:
             ip, port = self.http_proxy.ref().IPC_addr()
-            return (socks.PROXY_TYPE_HTTP, ip, port, True, None, None)
+            return ProxyInfo(socks.PROXY_TYPE_HTTP, ip, port, True, None, None)
         else:
             return None
                 
@@ -120,8 +126,8 @@ class Coordinator(ActorObject):
     def start_browser(self, url=None):
         http_proxy_enabled = True if self.http_proxy else False
         socks_proxy_enabled = True if self.socks_proxy else False
-        if not http_proxy_enabled and not socks_proxy_enabled:
-            return
+        #if not http_proxy_enabled and not socks_proxy_enabled:
+        #    return
         try:
             self.browser = Browser(self.ref(), http_proxy_enabled, socks_proxy_enabled, initial_url=url)
             self.browser.start()
@@ -155,44 +161,50 @@ class Coordinator(ActorObject):
                 self.cc_channel.ref().IPC_update_meek_relays()
         except Exception, e:
             print "failed to update meek relays: %s" % str(e)
-        
-    def run(self):
-        try:
-            self.initialize()
-            self.start_webadmin()
-            self.start_ui()
-        except Exception, e:
-            print "failed to start basic steps/processes: %s, try to recover ..." % str(e)
-            self.recover_conf()
-            if self.webadmin:
-                self.webadmin.terminate()
-                self.webadmin.join()
-            if self.ui:
-                self.ui.terminate()
-                self.ui.join()
-            self.initialize()
-            self.run_webadmin()
-            self.run_daemon()
-        
-        self.backup_conf()
-        self.start_cc_channel()
-        self.start_local_proxy()
-        if self.confdata['launch_browser']:
-            self.start_browser()
-        
+            
+    def check_for_update(self):
+        time.sleep(20)
         if self.cc_channel.type == "meek":
             self.update_meek_relays()
         self.check_and_update_blacklist()
         self.check_and_update_hosts()
         
+    def run(self):
+        try:
+            self.initialize()
+            self.start_cc_channel()
+            self.start_webadmin()
+            self.start_ui()
+            self.start_local_proxy()
+        except Exception, e:
+            print "failed to start basic steps/processes: %s, try to recover ..." % str(e)
+            self.recover_conf()
+            self.end()
+                
+            self.initialize()
+            self.start_cc_channel()
+            self.start_webadmin()
+            self.start_ui()
+            self.start_local_proxy()
+            
+        self.backup_conf()
+        if self.confdata['launch_browser']:
+            self.start_browser()
+            
+        t = threading.Thread(target=self.check_for_update)
+        t.daemon = True
+        t.start()
+        
         self.ui.join()
         self.end()
         
     def end(self):
-        self.webadmin.terminate()
-        self.webadmin.join()
-        self.cc_channel.terminate()
-        self.cc_channel.join()
+        if self.webadmin:
+            self.webadmin.terminate()
+            self.webadmin.join()
+        if self.cc_channel:
+            self.cc_channel.terminate()
+            self.cc_channel.join()
         if self.http_proxy:
             self.http_proxy.terminate()
             self.http_proxy.join()
@@ -202,6 +214,7 @@ class Coordinator(ActorObject):
         if self.browser:
             self.browser.terminate()
             self.browser.join()
+        singleton_clean(self.rootdir, self.singleton)
             
     # IPC interfaces
     def IPC_circumvention_url(self):
@@ -305,12 +318,11 @@ def close_std():
 def main():
     close_std()
     multiprocessing.freeze_support()
-    init_logging() 
+    init_logging()
     
     global rootdir
     conf_file = "config.json"
-    os.environ['REQUESTS_CA_BUNDLE'] = \
-        os.path.join(rootdir, "ca-bundle.crt").encode(sys.getfilesystemencoding())
+    set_ca_certs_env(os.path.join(rootdir, "cacert.pem").encode(sys.getfilesystemencoding()))
     coordinator = Coordinator(rootdir, conf_file)
     coordinator.run()
     
