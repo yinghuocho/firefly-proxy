@@ -2,6 +2,7 @@
 import logging
 import uuid
 import random
+import ssl
 from collections import defaultdict
 
 import gevent
@@ -48,7 +49,7 @@ class HTTPClientPool:
         except gevent.queue.Empty:
             insecure = "verify" not in relay.properties
             if ca_certs:
-                ssl_options = {'ca_certs': ca_certs}
+                ssl_options = {'ca_certs': ca_certs, 'ssl_version': ssl.PROTOCOL_TLSv1}
             else:
                 ssl_options = {}
             conn = HTTPClient.from_url(

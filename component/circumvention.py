@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import signal
+import ssl
 
 from gevent.pool import Pool
 from geventhttpclient import HTTPClient
@@ -93,7 +94,7 @@ class MeekChannel(ActorProcess):
             insecure=insecure, 
             connection_timeout=10,
             network_timeout=10,
-            ssl_options={'ca_certs': get_ca_certs_env()}
+            ssl_options={'ca_certs': get_ca_certs_env(), 'ssl_version': ssl.PROTOCOL_TLSv1}
         )
         for _ in range(2):
             try:
