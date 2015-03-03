@@ -7,7 +7,7 @@ if _platform == "linux" or _platform == "linux2":
     os.environ['GEVENT_RESOLVER'] = "ares"
 
 from server import SocksServer
-from meek_relay import MeekRelayFactory, Relay
+from relay import MeekRelayFactory, Relay
 
 def usage(f):
     print >> f, """
