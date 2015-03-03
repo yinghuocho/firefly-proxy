@@ -1,4 +1,4 @@
-a gevent based SOCKS5 proxy with flexiable relays.
+a gevent based SOCKS5 proxy with flexible relays.
 
 dependencies
 ============
