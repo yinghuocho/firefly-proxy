@@ -1,6 +1,6 @@
 {
-    "date": "2015-02-04",
-    "sha1": "0f30acdc9fa39d21b163e4c91a022035005614ca",
+    "date": "2015-03-03",
+    "sha1": "5a9ed91a63064bbbfa3f7431fc68dd088ae90bcd",
     "groups": {
         "Google": [
             [
@@ -185,6 +185,10 @@
             ],
             [
                 "webmproject.org",
+                0
+            ],
+            [
+                "googlezip.net",
                 0
             ],
             [

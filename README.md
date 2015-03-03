@@ -6,6 +6,7 @@ A proxy software specifically designed to help circumventing the Great Firewall.
 ### integrated
 * gsocks
 * ghttproxy
+* meeksocks-py
 * putty
 * SysTrayIcon.py
     
@@ -14,9 +15,7 @@ A proxy software specifically designed to help circumventing the Great Firewall.
 * Mako
 * web.py
 * gevent
-* requests
-* requesocks
-* grequests
+* geventhttpclient
 * shadowsocks
 * win_inet_pton (under Windows)
     

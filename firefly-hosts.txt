@@ -9,11 +9,11 @@
 ## +-------------------------  >>d(' _ ')b<<  -------------------------+
 ## |                                                                   |
 ## |         Project: https://github.com/lennylxx/ipv6-hosts           |
-## |         Update : Wed, 04 Feb 2015 22:32:01 +0800                  |
+## |         Update : Fri, 13 Feb 2015 18:25:35 +0800                  |
 ## |                                                                   |
 ## +-------------------------------------------------------------------+
 
-## 2015-02-04 removed Ipv4 entries <yinghuocho@gmail.com>
+## 2015-03-02 removed Ipv4 entries <yinghuocho@gmail.com>
 
 ::1 localhost
 
@@ -50,6 +50,7 @@
 2607:f8b0:4007:804::1007 pki.google.com #www3.l.google.com
 2607:f8b0:4007:804::1007 services.google.com #www3.l.google.com
 2607:f8b0:4007:804::1006 suggestqueries.google.com #suggestqueries.l.google.com
+2001:4860:400b:c01::c0 supl.google.com
 2607:f8b0:4007:804::1007 support.google.com #www3.l.google.com
 2001:4860:400b:c01::74 upload.google.com #large-uploads.l.google.com
 2607:f8b0:4007:804::1004 client-channel.google.com
@@ -748,6 +749,7 @@
 2607:f8b0:4007:804::100b gp.googleusercontent.com #googlehosted.l.googleusercontent.com
 
 ## GStatic Google 静态文件存储
+2607:f8b0:4007:808::2003 accounts.gstatic.com
 2a00:1450:4010:c02::5e csi.gstatic.com
 2607:f8b0:4007:804::1017 fonts.gstatic.com
 2607:f8b0:4007:804::101f maps.gstatic.com
@@ -898,6 +900,12 @@
 2001:4860:400b:c01::79 lists.webmproject.org #ghs.l.google.com
 2001:4860:400b:c01::79 blog.webmproject.org #ghs.l.google.com
 2001:4860:400b:c01::79 www.webm-ccl.org #ghs.l.google.com
+
+## GoogleZip 数据压缩代理
+2800:3f0:4003:c00::72 check.googlezip.net
+2607:f8b0:4007:808::200c compress.googlezip.net
+2607:f8b0:4007:808::200c proxy.googlezip.net
+2607:f8b0:4007:808::200c proxy-dev.googlezip.net
 
 ## Chrome 相关专题网站
 2607:f8b0:4007:804::1007 www.chromercise.com #www3.l.google.com

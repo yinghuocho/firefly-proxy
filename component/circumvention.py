@@ -10,8 +10,8 @@ from geventhttpclient.url import URL
 
 from shadowsocks import encrypt, asyncdns, eventloop, tcprelay, udprelay
 
-from gsocks.meek_relay import Relay, MeekRelayFactory
 from gsocks.server import SocksServer
+from meeksocks.relay import Relay, MeekRelayFactory
 from lib.ipc import ActorObject, ActorProcess
 from lib.utils import init_logging, load_file, remote_fetch_with_proxy, local_update_datafile, get_ca_certs_env
 
