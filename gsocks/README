@@ -2,9 +2,5 @@ a gevent based SOCKS5 proxy with flexible relays.
 
 dependencies
 ============
-	* gevent
-	* dpkt
-	* requests
-	* grequests
-	* win_inet_pton (under Windows)
-	
+    * gevent
+    * dpkt
