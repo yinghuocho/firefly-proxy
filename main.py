@@ -21,7 +21,7 @@ sys.path.append(rootdir)
 from lib.utils import init_logging, local_update_datafile, set_ca_certs_env, singleton_check, singleton_clean
 from lib.ipc import ActorObject
 from component.ui import UI
-from component.admin import Webadmin
+from component.admin import Admin
 from component.circumvention import CircumventionChannel, remote_update_meek_relays
 from component.local import HTTPProxy, SocksProxy
 from component.brz import Browser
@@ -36,7 +36,7 @@ class Coordinator(ActorObject):
         self.conf_file = conf_file
         
         self.confdata = None
-        self.webadmin = None
+        self.admin = None
         self.ui = None
         self.cc_channel = None
         
@@ -75,9 +75,9 @@ class Coordinator(ActorObject):
         self.ui = UI(self.ref())
         self.ui.start()
         
-    def start_webadmin(self):
-        self.webadmin = Webadmin(self.ref())
-        self.webadmin.start()
+    def start_admin(self):
+        self.admin = Admin(self.ref())
+        self.admin.start()
         
     def start_cc_channel(self):
         try:
@@ -173,7 +173,7 @@ class Coordinator(ActorObject):
         try:
             self.initialize()
             self.start_cc_channel()
-            self.start_webadmin()
+            self.start_admin()
             self.start_ui()
             self.start_local_proxy()
         except Exception, e:
@@ -183,7 +183,7 @@ class Coordinator(ActorObject):
                 
             self.initialize()
             self.start_cc_channel()
-            self.start_webadmin()
+            self.start_admin()
             self.start_ui()
             self.start_local_proxy()
             
@@ -199,9 +199,9 @@ class Coordinator(ActorObject):
         self.end()
         
     def end(self):
-        if self.webadmin:
-            self.webadmin.terminate()
-            self.webadmin.join()
+        if self.admin:
+            self.admin.terminate()
+            self.admin.join()
         if self.cc_channel:
             self.cc_channel.terminate()
             self.cc_channel.join()
@@ -234,7 +234,7 @@ class Coordinator(ActorObject):
             self.start_browser()
             
     def IPC_open_admin_url(self):
-        url =  self.webadmin.ref().IPC_url()
+        url =  self.admin.ref().IPC_url()
         if self.browser and self.browser.is_alive():
             return self.browser.ref().IPC_open_url(url)
         else:

@@ -6,9 +6,9 @@ from gevent.pywsgi import WSGIServer
 from lib.ipc import ActorProcess
 from lib.utils import idle_port, init_logging
 
-class Webadmin(ActorProcess):
+class Admin(ActorProcess):
     def __init__(self, coordinator):
-        super(Webadmin, self).__init__()
+        super(Admin, self).__init__()
         self.coordinator = coordinator
         
         confdata = self.coordinator.get('confdata')
@@ -22,7 +22,7 @@ class Webadmin(ActorProcess):
         webpath = os.path.join(rootdir, confdata['web_path'])
         os.chdir(webpath)
         
-        from webui import app
+        from webpanel import app
         try:
             WSGIServer((self.ip, self.port), application=app.create_app(self.coordinator), log=None).serve_forever()
         except socket.error, e:  # @UndefinedVariable

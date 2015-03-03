@@ -19,8 +19,8 @@ build_exe_options = {
 		"cacert.pem",
 		"README.md",
 		"LICENSE",
-		("webui\\static", "webui\\static"),
-		("webui\\templates", "webui\\templates"),
+		("webpanel\\static", "webpanel\\static"),
+		("webpanel\\templates", "webpanel\\templates"),
 		("tools\\", "tools"),
 	],
 }
