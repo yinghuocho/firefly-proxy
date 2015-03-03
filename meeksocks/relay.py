@@ -13,15 +13,15 @@ from gevent.event import Event
 
 from geventhttpclient import HTTPClient, URL
 
-from relay import RelayFactory, RelaySession, RelaySessionError
-from msg import Reply, GENERAL_SOCKS_SERVER_FAILURE
-from meek import SESSION_ID_LENGTH, MAX_PAYLOAD_LENGTH, HEADER_SESSION_ID, \
+from gsocks.relay import RelayFactory, RelaySession, RelaySessionError
+from gsocks.msg import Reply, GENERAL_SOCKS_SERVER_FAILURE
+from gsocks.utils import SharedTimer, bind_local_udp, request_fail, request_success, \
+sock_addr_info
+from constants import SESSION_ID_LENGTH, MAX_PAYLOAD_LENGTH, HEADER_SESSION_ID, \
 HEADER_UDP_PKTS, HEADER_MODE, HEADER_MSGTYPE, MSGTYPE_DATA, MODE_STREAM, \
 HEADER_ERROR, CLIENT_MAX_TRIES, CLIENT_RETRY_DELAY, CLIENT_INITIAL_POLL_INTERVAL, \
 CLIENT_POLL_INTERVAL_MULTIPLIER, CLIENT_MAX_POLL_INTERVAL, MSGTYPE_TERMINATE, \
 CLIENT_MAX_FAILURE
-from utils import SharedTimer, bind_local_udp, request_fail, request_success, \
-sock_addr_info
 
 log = logging.getLogger(__name__)
 

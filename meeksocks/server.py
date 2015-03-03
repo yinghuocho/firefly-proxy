@@ -15,15 +15,15 @@ from gevent.pywsgi import WSGIServer
 from gevent.queue import Queue, Empty
 from gevent.event import Event
 
-from server import SocksServer
-from relay import SocksRelayFactory, RelaySessionError
-from meek import MAX_PAYLOAD_LENGTH, HEADER_SESSION_ID, HEADER_UDP_PKTS, \
+from gsocks.server import SocksServer
+from gsocks.relay import SocksRelayFactory, RelaySessionError
+from gsocks.utils import SharedTimer, read_init_reply, bind_local_udp, sock_addr_info, \
+read_reply
+from gsocks.msg import InitRequest, Request, UDP_ASSOCIATE, CONNECT, BIND
+from constants import MAX_PAYLOAD_LENGTH, HEADER_SESSION_ID, HEADER_UDP_PKTS, \
 HEADER_MODE, HEADER_MSGTYPE, MSGTYPE_DATA, MODE_STREAM, HEADER_ERROR, \
 CLIENT_MAX_POLL_INTERVAL, MSGTYPE_TERMINATE, SERVER_TURNAROUND_TIMEOUT, \
 SERVER_TURNAROUND_MAX
-from utils import SharedTimer, read_init_reply, bind_local_udp, sock_addr_info, \
-read_reply
-from msg import InitRequest, Request, UDP_ASSOCIATE, CONNECT, BIND
 
 log = logging.getLogger(__name__)
 
