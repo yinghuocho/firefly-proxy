@@ -9,7 +9,8 @@ import urlparse
 import urllib
 import os
 
-from httplib2 import HTTPConnectionWithTimeout, HTTPSConnectionWithTimeout
+import requests
+import requesocks
     
 def idle_port():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -83,22 +84,21 @@ def parse_url(url):
     path = urlparse.urlunsplit(("", "", u.path, u.query, ""))
     return str(scheme), str(urllib.quote(host)), port, str(urllib.quote(path))
 
-def remote_fetch_with_proxy(url, proxy_info):      
-    scheme, host, port, path = parse_url(url)
-    if scheme == "http":
-        f = HTTPConnectionWithTimeout
+def remote_fetch_with_proxy(url, proxy_info):  
+    if 'socks' in json.dumps(proxy_info):
+        s = requests.Session()
     else:
-        f = HTTPSConnectionWithTimeout
-    
+        s = requesocks.Session()
+        
+    s.trust_env = False
+    s.proxies = proxy_info
     retry = 2
     while True:
         try:
-            conn = f(host, port=port, timeout=10, proxy_info=proxy_info)
-            conn.request("GET", path)
-            resp = conn.getresponse()
-            data = resp.read()
-            resp.close()
-            return data
+            r = s.get(url, verify=get_ca_certs_env())
+            if r.status_code != requests.codes.ok:  # @UndefinedVariable
+                raise Exception("invalid response")
+            return r.text.encode("utf-8")
         except Exception, e:
             if retry > 0:
                 print str(e), "give it another chance ..."

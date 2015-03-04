@@ -16,6 +16,8 @@ A proxy software specifically designed to help circumventing the Great Firewall.
 * web.py
 * gevent
 * geventhttpclient
+* requests
+* requesocks
 * shadowsocks
 * win_inet_pton (under Windows)
     

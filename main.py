@@ -8,8 +8,6 @@ from datetime import datetime, date
 import multiprocessing
 import threading
 
-from httplib2 import socks, ProxyInfo
-
 if getattr(sys, 'frozen', False):
     rootdir = os.path.dirname(sys.executable)
 else:
@@ -107,13 +105,18 @@ class Coordinator(ActorObject):
                 
     def proxy_info(self):
         if self.socks_proxy:
-            ip, port = self.socks_proxy.ref().IPC_addr()
-            return ProxyInfo(socks.PROXY_TYPE_SOCKS5, ip, port, True, None, None)
+            #ip, port = self.socks_proxy.ref().IPC_addr()
+            #return ProxyInfo(socks.PROXY_TYPE_SOCKS5, ip, port, True, None, None)
+            url = self.socks_proxy.ref().IPC_url()
+            return {'http': url, 'https': url}
         elif self.http_proxy:
-            ip, port = self.http_proxy.ref().IPC_addr()
-            return ProxyInfo(socks.PROXY_TYPE_HTTP, ip, port, True, None, None)
+            #ip, port = self.http_proxy.ref().IPC_addr()
+            #return ProxyInfo(socks.PROXY_TYPE_HTTP, ip, port, True, None, None)
+            url = self.http_proxy.ref().IPC_url()
+            return {'http': url, 'https': url}
         else:
-            return None
+            #return None
+            return {}
                 
     def update_matcher(self):
         circumvention_url = self.IPC_circumvention_url()
