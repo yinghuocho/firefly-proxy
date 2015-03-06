@@ -1,7 +1,7 @@
 A proxy software specifically designed to help circumventing the Great Firewall.
 
 ### 下载
-* <a href="http://sourceforge.net/projects/fireflyproxy/files/firefly-proxy-win-0.1.3-install.exe/download" target="_blank">sourceforge 下载地址</a>
+* <a href="http://www58.zippyshare.com/d/HG8swb8R/66016/firefly-proxy-win-0.2.0.zip" target="_blank">zippyshare 下载地址</a>
 
 ### integrated
 * gsocks
