@@ -7,6 +7,7 @@ import web
 from web.contrib.template import render_mako
 
 urls = (
+    '/favicon.ico', 'icon',
     '/static/(.*)', 'static',
     
     '/about', 'about',
@@ -79,6 +80,10 @@ def update_config(update, reboot=True, ipc=True, reload_hosts=False):
         headers = {'Content-Type': 'application/json'}
         resp = json.dumps([{'message': u'系统错误'}])
         raise web.HTTPError(status, headers, unicode(resp))
+            
+class icon:
+    def GET(self):
+        raise web.seeother("/static/img/favicon.ico")
             
 class static:
     def GET(self, name):
