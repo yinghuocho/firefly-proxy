@@ -51,7 +51,7 @@ class HTTPClientPool:
             if ca_certs:
                 ssl_options = {'ca_certs': ca_certs, 'ssl_version': ssl.PROTOCOL_TLSv1}
             else:
-                ssl_options = {}
+                ssl_options = {'ssl_version': ssl.PROTOCOL_TLSv1}
             conn = HTTPClient.from_url(
                 URL(relay.fronturl), 
                 insecure=insecure,
@@ -343,7 +343,7 @@ class MeekSession(RelaySession):
         self.conn_pool.release(self.relay, self.httpclient)
         
 class MeekRelayFactory(RelayFactory):
-    def __init__(self, relays, ca_certs, timeout=60):     
+    def __init__(self, relays, ca_certs="", timeout=60):     
         self.relays = relays
         self.timeout = timeout
         self.ca_certs = ca_certs
