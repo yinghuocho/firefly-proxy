@@ -1,0 +1,2 @@
+https://a0.awsstatic.com/,dswpv736infni.cloudfront.net,stream
+https://ajax.aspnetcdn.com/,az672578.vo.msecnd.net,stream
