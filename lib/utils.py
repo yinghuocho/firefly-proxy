@@ -86,9 +86,9 @@ def parse_url(url):
 
 def remote_fetch_with_proxy(url, proxy_info):  
     if 'socks' in json.dumps(proxy_info):
-        s = requests.Session()
-    else:
         s = requesocks.Session()
+    else:
+        s = requests.Session()
         
     s.trust_env = False
     s.proxies = proxy_info
