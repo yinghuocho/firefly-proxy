@@ -74,11 +74,12 @@ class FireflyHosts(object):
                 addr, name = parts
                 if "." in addr:
                     socket.inet_pton(socket.AF_INET, addr)  # @UndefinedVariable
-                elif socket.has_ipv6:                       # @UndefinedVariable
-                    socket.inet_pton(socket.AF_INET6, addr) # @UndefinedVariable
+                else:                       
+                    socket.inet_pton(socket.AF_INET6, addr) # @UndefinedVariable   
                 self.data[name.encode("idna")].append(addr)
             except Exception, e:
-                print "[Hosts]: ", entry, str(e)
+                pass
+                #print "[Hosts]: ", entry, str(e)
             
     def count(self):
         return len(self.data.keys())
