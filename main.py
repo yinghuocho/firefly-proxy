@@ -56,8 +56,12 @@ class Coordinator(ActorObject):
             shutil.copy(conf, default)
     
     def recover_conf(self):
-        conf = os.path.join(self.rootdir, self.conf_file)
-        shutil.copy(conf + ".last", conf)
+        try:
+            conf = os.path.join(self.rootdir, self.conf_file)
+            shutil.copy(conf + ".last", conf)
+            return True
+        except:
+            return False
         
     def initialize(self):
         self.singleton = singleton_check(self.rootdir)
@@ -181,9 +185,10 @@ class Coordinator(ActorObject):
             self.start_local_proxy()
         except Exception, e:
             print "failed to start basic steps/processes: %s, try to recover ..." % str(e)
-            self.recover_conf()
+            if not self.recover_conf():
+                raise e
+            
             self.end()
-                
             self.initialize()
             self.start_cc_channel()
             self.start_admin()
