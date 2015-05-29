@@ -131,7 +131,7 @@ if os.name == 'nt':
     import _brz_win
     iterate_browsers = _brz_win.iterate_browsers
     implemented['iexplore'] = (1, (HTTP,), (_brz_win.launch_ie, _brz_win.launch_ie_tab))
-    resume_function = _brz_win.resume_ie_settings
+    resume_proxy_config = _brz_win.resume_ie_settings
 
 class Browser(ActorObject):
     def __init__(self, coordinator, http_proxy_enabled, socks_proxy_enabled, initial_url=None):
