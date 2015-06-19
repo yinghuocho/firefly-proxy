@@ -17,6 +17,7 @@ sys.path.append(rootdir)
 
 from lib.utils import init_logging, local_update_datafile, set_ca_certs_env, singleton_check, singleton_clean
 from lib.ipc import ActorObject
+from component.admin import Admin
 from component.circumvention import CircumventionChannel, remote_update_meek_relays
 from component.local import HTTPProxy, SocksProxy
 from component.matcher import create_matcher, blacklist_info, remote_update_blacklist
@@ -30,6 +31,7 @@ class Coordinator(ActorObject):
         self.conf_file = conf_file
         
         self.confdata = None
+        self.admin = None
         self.cc_channel = None
         self.matcher = None
         self.http_proxy = None
@@ -61,6 +63,10 @@ class Coordinator(ActorObject):
         self.ref().share('confdata', self.confdata)
         self.start_actor()
         
+    def start_admin(self):
+        self.admin = Admin(self.ref())
+        self.admin.start()
+        
     def start_cc_channel(self):
         try:
             self.cc_channel = CircumventionChannel(self.ref())
@@ -89,17 +95,17 @@ class Coordinator(ActorObject):
                 
     def proxy_info(self):
         if self.socks_proxy:
-            #ip, port = self.socks_proxy.ref().IPC_addr()
-            #return ProxyInfo(socks.PROXY_TYPE_SOCKS5, ip, port, True, None, None)
+            # ip, port = self.socks_proxy.ref().IPC_addr()
+            # return ProxyInfo(socks.PROXY_TYPE_SOCKS5, ip, port, True, None, None)
             url = self.socks_proxy.ref().IPC_url()
             return {'http': url, 'https': url}
         elif self.http_proxy:
-            #ip, port = self.http_proxy.ref().IPC_addr()
-            #return ProxyInfo(socks.PROXY_TYPE_HTTP, ip, port, True, None, None)
+            # ip, port = self.http_proxy.ref().IPC_addr()
+            # return ProxyInfo(socks.PROXY_TYPE_HTTP, ip, port, True, None, None)
             url = self.http_proxy.ref().IPC_url()
             return {'http': url, 'https': url}
         else:
-            #return None
+            # return None
             return {}
                 
     def update_matcher(self):
@@ -148,20 +154,29 @@ class Coordinator(ActorObject):
     def run(self):
         try:
             self.initialize()
+            self.start_cc_channel()
+            self.start_admin()
+            self.start_local_proxy()
         except Exception, e:
             print "failed to start basic steps/processes: %s, try to recover ..." % str(e)
-            self.recover_conf()
+            if not self.recover_conf():
+                raise e
+            
+            self.end()
             self.initialize()
+            self.start_cc_channel()
+            self.start_admin()
+            self.start_local_proxy()
         
         self.backup_conf()
-        self.start_cc_channel()
-        self.start_local_proxy()
-        
         t = threading.Thread(target=self.check_for_update)
         t.daemon = True
         t.start()
         
     def end(self):
+        if self.admin:
+            self.admin.terminate()
+            self.admin.join()
         if self.cc_channel:
             self.cc_channel.terminate()
             self.cc_channel.join()
