@@ -13,3 +13,5 @@ main.py.linux
 meek-relays.txt
 
 *lock
+*.pyc
+*.zip
