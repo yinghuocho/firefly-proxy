@@ -104,6 +104,10 @@
                         meek （内建翻墙通道）
                     </label>
                 </div>
+            </div>
+                
+            % if support_ssh:
+            <div class="row">
                 <div class="radio col-md-offset-1">
                     <label>
                         <input type="radio" name="circumvention_chan_type" id="circumvention_chan_ssh" value="ssh"
@@ -175,7 +179,7 @@
                            id="ssh_keyfile" name="ssh_keyfile" value="${confdata['circumvention_chan_ssh']['keyfile']}">
                 </div>
             </div>
-
+            % endif
         
             <div class="row">
                 <div class="radio col-md-offset-1">
@@ -236,8 +240,8 @@
                                 checked
                             % endif
                         >TCP Fast Open
-                </label>
-        </div>
+                    </label>
+                </div>
             </div>
         
             <hr>

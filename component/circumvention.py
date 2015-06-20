@@ -13,7 +13,7 @@ from shadowsocks import encrypt, asyncdns, eventloop, tcprelay, udprelay
 from gsocks.server import SocksServer
 from meeksocks.relay import Relay, MeekRelayFactory
 from lib.ipc import ActorObject, ActorProcess
-from lib.utils import init_logging, load_file, remote_fetch_with_proxy, local_update_datafile, get_ca_certs_env
+from lib.utils import init_logging, load_file, remote_fetch_with_proxy, local_update_datafile, get_ca_certs_env, which
 
 class ShadowSocksChannel(ActorProcess):
     def __init__(self, coordinator):
@@ -172,6 +172,34 @@ class SSHChannel(ActorObject):
         part3 = ["%s@%s" % (sshconf['username'], sshconf['server_name'])]
         return [s.encode(sys.getfilesystemencoding()) for s in part1 + part2 + part3]
         
+    def _launch_ssh(self, proxy_ip, proxy_port, sshconf):
+        part1 = [
+            "ssh",
+            "-oStrictHostKeyChecking=no",
+            "-C2qTN",
+            "-D",
+            "%s:%d" % (proxy_ip, proxy_port),
+            "-p",
+            str(sshconf['server_port']),
+        ]
+        part3 = ["%s@%s" % (sshconf['username'], sshconf['server_name'])]
+        
+        if sshconf['auth'] == "key":
+            part2 = ["-i", sshconf['keyfile']]
+            args = [s.encode(sys.getfilesystemencoding()) for s in part1 + part2 + part3]
+            return subprocess.Popen(args)
+        else:
+            import pexpect
+            try:
+                args = [s.encode(sys.getfilesystemencoding()) for s in part1 + part3]
+                p = pexpect.spawn(" ".join(args), timeout=10)
+                p.expect("password:")
+                p.sendline(sshconf['password'])
+                return p
+            except Exception, e:
+                print type(e), str(e)
+                return None
+                
     def start(self):        
         rootdir = self.coordinator.get('rootdir')
         args = {}
@@ -183,12 +211,19 @@ class SSHChannel(ActorObject):
             su.dwFlags |= subprocess.STARTF_USESHOWWINDOW 
             su.wShowWindow = subprocess.SW_HIDE 
             kwargs['startupinfo'] = su 
-        self.process = subprocess.Popen(args, **kwargs)
-        self.start_actor() 
+            self.process = subprocess.Popen(args, **kwargs)
+        elif which('ssh'):
+            self.process = self._launch_ssh(self.ip, self.port, self.sshconf)
+            
+        if self.process:
+            self.start_actor() 
         
     def join(self):
         if self.process:
-            self.process.wait()
+            try:
+                self.process.wait()
+            except:
+                pass
             
     def terminate(self):
         self.quit_actor()
@@ -197,7 +232,10 @@ class SSHChannel(ActorObject):
     
     def is_alive(self):
         if self.process:
-            return self.process.poll() is None
+            try:
+                return self.process.poll() is None
+            except:
+                return self.process.isalive()
         else:
             return False
         
@@ -242,4 +280,17 @@ class CircumventionChannel(ActorObject):
         if self.type != "meek":
             return False
         return self.channel.ref().IPC_update_relays(relays)
+    
+    def IPC_support_ssh(self):
+        rootdir = self.coordinator.get('rootdir')
+        if subprocess.mswindows:
+            executable = os.path.join(rootdir, "tools/putty.exe")
+            if os.path.isfile(executable):
+                return True
+            else:
+                return False
+        elif which("ssh"):
+            return True
+        
+        return False
         

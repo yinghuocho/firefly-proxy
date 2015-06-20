@@ -103,10 +103,12 @@ class proxy:
         global coordinator, need_reboot
         
         shadowsocks_methods = coordinator.IPC_shadowsocks_methods()
+        support_ssh = coordinator.IPC_support_ssh()
         return render.proxy(
             need_reboot=need_reboot,
             confdata=coordinator.get('confdata'),
-            shadowsocks_methods=shadowsocks_methods
+            shadowsocks_methods=shadowsocks_methods,
+            support_ssh=support_ssh
         )
     
 class blacklist:
@@ -210,7 +212,11 @@ class circumvention_settings:
         data = web.input()
         update = {}
         try:
-            update['circumvention_chan_type'] = data.get('circumvention_chan_type')
+            chtype = data.get('circumvention_chan_type')
+            if chtype == 'ssh' and not coordinator.IPC_support_ssh():
+                return update_config(update)
+            
+            update['circumvention_chan_type'] = chtype
             update['circumvention_proxy_ip'] = data.get('circumvention_proxy_ip')
             update['circumvention_proxy_port'] = int(data.get('circumvention_proxy_port'))
             

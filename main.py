@@ -317,6 +317,9 @@ class Coordinator(ActorObject):
         local_update_datafile(u"\n".join(disabled), os.path.join(self.rootdir, self.confdata['hosts']['disabled']))
         self.update_matcher()
         
+    def IPC_support_ssh(self):
+        return self.cc_channel.ref().IPC_support_ssh()
+        
 def close_std():
     sys.stdin.close()
     sys.stdin = open(os.devnull)
