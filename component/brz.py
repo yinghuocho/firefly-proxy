@@ -11,23 +11,19 @@ from lib.ipc import ActorObject
 
 # proxy type
 SOCKS5 = 1
-HTTP   = 2
+HTTP = 2
 
-def launch_chrome(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, default):
+def launch_chrome(executable, url, rootdir, proxy_type, proxy_ip, proxy_port):
     if proxy_type == SOCKS5:
         proxy_option = '--proxy-server=socks5://%s:%d' % (proxy_ip, proxy_port)
     else:
         proxy_option = '--proxy-server=http://%s:%d' % (proxy_ip, proxy_port)
         
-    if not url.startswith("http"):
-        # must be local file
-        url = urlparse.urljoin('file:', urllib.pathname2url(url.encode(sys.getfilesystemencoding())))
-        
     cmdline = [
         executable,
         u'-user-data-dir=%s' % os.path.join(rootdir, "chrome_user_data"),
         proxy_option,
-        '--proxy-bypass-list=*.local;<local>',
+        '--proxy-bypass-list="*.local;<local>"',
         '--host-resolver-rules="MAP * 0.0.0.0 , EXCLUDE %s"' % proxy_ip,
         '--new-window',
         url,
@@ -35,10 +31,7 @@ def launch_chrome(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, de
     cmdline = [s.encode(sys.getfilesystemencoding()) for s in cmdline]
     return subprocess.Popen(cmdline)
 
-def launch_chrome_tab(executable, url, rootdir, default):
-    if not url.startswith("http"):
-        url = urlparse.urljoin('file:', urllib.pathname2url(url.encode(sys.getfilesystemencoding())))
-        
+def launch_chrome_tab(executable, url, rootdir):
     cmdline = [
         executable,
         u'-user-data-dir=%s' % os.path.join(rootdir, "chrome_user_data"),
@@ -48,7 +41,7 @@ def launch_chrome_tab(executable, url, rootdir, default):
     cmdline = [s.encode(sys.getfilesystemencoding()) for s in cmdline]
     return subprocess.Popen(cmdline)
 
-def launch_firefox(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, default):
+def launch_firefox(executable, url, rootdir, proxy_type, proxy_ip, proxy_port):
     profilepath = os.path.join(rootdir, "firefox_user_data")
     if not os.path.isdir(profilepath):
         os.makedirs(profilepath)
@@ -83,11 +76,7 @@ def launch_firefox(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, d
     f.write("\n".join(data))
     f.write("\n")
     f.close()
-
-    if not url.startswith("http"):
-        # must be local file
-        url = urlparse.urljoin('file:', urllib.pathname2url(url.encode(sys.getfilesystemencoding())))
-        
+     
     cmdline = [
         executable,
         '-profile',
@@ -98,12 +87,9 @@ def launch_firefox(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, d
     cmdline = [s.encode(sys.getfilesystemencoding()) for s in cmdline]
     return subprocess.Popen(cmdline)
 
-def launch_firefox_tab(executable, url, rootdir, default):
-    profilepath = os.path.join(rootdir, "firefox_user_data")
-    if not url.startswith("http"):
-        # must be local file
-        url = urlparse.urljoin('file:', urllib.pathname2url(url.encode(sys.getfilesystemencoding())))
-        
+def launch_firefox_tab(executable, url, rootdir):
+    # this does not work on OS X
+    profilepath = os.path.join(rootdir, "firefox_user_data")    
     cmdline = [
         executable,
         '-profile',
@@ -116,30 +102,38 @@ def launch_firefox_tab(executable, url, rootdir, default):
 
 def iterate_browsers():
     return []
-
+  
 PRIORITY_OF_DEFAULT = 10
 implemented = {
-    # priority, supported proxy, launch_function
-    "chrom"    : (3, (SOCKS5, HTTP), (launch_chrome, launch_chrome_tab)),
-    "firefox"  : (2, (SOCKS5, HTTP), (launch_firefox, launch_firefox_tab)),
+    # priority, supported proxy, launch_instance_function, launch_tab_function, resume_proxy_function
+    "chrome"    : (3, (SOCKS5, HTTP), (launch_chrome, launch_chrome_tab, None)),
+    "firefox"   : (2, (SOCKS5, HTTP), (launch_firefox, launch_firefox_tab, None)),
 }
-
-# resume 
-resume_proxy_config = None
 
 if os.name == 'nt':
     import _brz_win
     iterate_browsers = _brz_win.iterate_browsers
-    implemented['iexplore'] = (1, (HTTP,), (_brz_win.launch_ie, _brz_win.launch_ie_tab))
-    resume_proxy_config = _brz_win.resume_ie_settings
-
+    implemented['iexplore'] = (1, (HTTP,), (_brz_win.launch_ie, _brz_win.launch_ie_tab, _brz_win.resume_ie_settings))
+elif sys.platform == "darwin":
+    import _brz_mac
+    iterate_browsers = _brz_mac.iterate_browsers
+   
+def able_to_setproxy():
+    for (name, _, _, _) in iterate_browsers():
+        for k in implemented.keys():
+            if k in name:
+                return True
+    return False
+   
 class Browser(ActorObject):
-    def __init__(self, coordinator, http_proxy_enabled, socks_proxy_enabled, initial_url=None):
+    def __init__(self, coordinator, http_proxy_enabled, socks_proxy_enabled, initial_url=None, set_proxy=True):
         super(Browser, self).__init__()
         self.coordinator = coordinator
         self.http_proxy_enabled = http_proxy_enabled
         self.socks_proxy_enabled = socks_proxy_enabled
         self.initial_url = initial_url
+        self.set_proxy = set_proxy
+        self.resume_proxy_func = None
         
         self.instance = None
         self.cleaner = None
@@ -150,15 +144,15 @@ class Browser(ActorObject):
             addrs[HTTP] = self.coordinator.IPC_http_proxy_addr()
         if self.socks_proxy_enabled:
             addrs[SOCKS5] = self.coordinator.IPC_socks_proxy_addr()
-        if not addrs:
+        if not addrs or not self.set_proxy:
             webbrowser.open(url)
             return None
         
         browsers = []
         for (name, executable, default, _) in iterate_browsers():
             for k in implemented.keys():
-                if k in name.lower():
-                    priority, types, (launch_func, launch_tab_func) = implemented[k] 
+                if k in name:
+                    priority, types, (launch_func, launch_tab_func, resume_proxy_func) = implemented[k] 
                     addr = None
                     for t in types:
                         if t in addrs:
@@ -168,19 +162,24 @@ class Browser(ActorObject):
                         break            
                     if default:
                         priority = PRIORITY_OF_DEFAULT    
-                    browsers.append((priority, addr, (launch_func, launch_tab_func), executable, default))
+                    browsers.append((priority, addr, (launch_func, launch_tab_func, resume_proxy_func), executable, default))
                     break       
         if not browsers:
+            webbrowser.open(url)
             return None
         # sort available browsers by pritority
         browsers.sort(key=lambda x: x[0], reverse=True)
-        (_, (proxy_type, (proxy_ip, proxy_port)), (launch_func, launch_tab_func), executable, default) = browsers[0]
+        (_, (proxy_type, (proxy_ip, proxy_port)), (launch_func, launch_tab_func, resume_proxy_func), executable, default) = browsers[0]
         
+        self.resume_proxy_func = resume_proxy_func
         rootdir = self.coordinator.get('rootdir')
+        if not url.startswith("http"):
+            url = urlparse.urljoin('file:', urllib.pathname2url(url.encode(sys.getfilesystemencoding())))
+            
         if tab:
-            return launch_tab_func(executable, url, rootdir, default)
+            return launch_tab_func(executable, url, rootdir)
         else:
-            return launch_func(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, default)
+            return launch_func(executable, url, rootdir, proxy_type, proxy_ip, proxy_port)
     
     def default_page(self):
         confdata = self.coordinator.get('confdata')
@@ -193,7 +192,8 @@ class Browser(ActorObject):
     def start(self):
         url = self.initial_url
         if not url:
-            url = self.default_page() 
+            url = self.default_page()
+             
         self.instance = self._launch_browser(url)
         self.start_actor()
         # cleaner to quit IPC actor after browser closed, 
@@ -206,8 +206,8 @@ class Browser(ActorObject):
         if self.instance:
             self.instance.wait()
             self.quit_actor()
-            if resume_proxy_config:
-                resume_proxy_config()
+            if self.set_proxy and self.resume_proxy_config:
+                self.resume_proxy_config()
         
     def terminate(self):
         self.quit_actor()

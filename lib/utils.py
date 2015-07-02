@@ -49,7 +49,7 @@ def init_logging():
         sys.stderr = LoggerWriter(logger, logging.DEBUG)
     else:
         logger = logging.getLogger()
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.DEBUG)
         ch = logging.StreamHandler()
         ch.setFormatter(logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'))
         logger.addHandler(ch)

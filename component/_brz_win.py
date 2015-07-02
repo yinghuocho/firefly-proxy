@@ -108,7 +108,7 @@ def iterate_browsers(default=None):
                 outdated = True
             else:
                 outdated = False
-            yield key, path, path.lower() == default, outdated
+            yield key.lower(), path, path.lower() == default, outdated
 
 old_ie_settings = {}
 
@@ -119,7 +119,7 @@ def resume_ie_settings():
     for (name, value) in old_ie_settings.items():
         write_reg_key(key, subkey, name, value)
 
-def launch_ie(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, default):
+def launch_ie(executable, url, rootdir, proxy_type, proxy_ip, proxy_port):
     global old_ie_settings
     
     key = HKEY_CURRENT_USER
@@ -141,7 +141,7 @@ def launch_ie(executable, url, rootdir, proxy_type, proxy_ip, proxy_port, defaul
     cmdline = [s.encode(sys.getfilesystemencoding()) for s in cmdline]
     return subprocess.Popen(cmdline)
 
-def launch_ie_tab(executable, url, rootdir, default):
+def launch_ie_tab(executable, url, rootdir):
     cmdline = [
         executable,
         url,

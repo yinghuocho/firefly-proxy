@@ -34,6 +34,7 @@ render = render_mako(
     output_encoding='utf-8',
 )
 
+setproxy_tip = False 
 need_reboot = False
 coordinator = None
 
@@ -92,20 +93,22 @@ class static:
             
 class about:
     def GET(self):
-        global need_reboot
+        global need_reboot, setproxy_tip
         
         return render.about(
             need_reboot=need_reboot,
+            setproxy_tip=setproxy_tip,
         )
     
 class proxy:
     def GET(self):
-        global coordinator, need_reboot
+        global coordinator, need_reboot, setproxy_tip
         
         shadowsocks_methods = coordinator.IPC_shadowsocks_methods()
         support_ssh = coordinator.IPC_support_ssh()
         return render.proxy(
             need_reboot=need_reboot,
+            setproxy_tip=setproxy_tip,
             confdata=coordinator.get('confdata'),
             shadowsocks_methods=shadowsocks_methods,
             support_ssh=support_ssh
@@ -113,13 +116,14 @@ class proxy:
     
 class blacklist:
     def GET(self):
-        global coordinator
+        global coordinator, need_reboot, setproxy_tip
         
         (_, bl_count, bl_date) = coordinator.IPC_blacklist_info()
         custom_bl = coordinator.IPC_get_custom_blacklist()
         custom_wl = coordinator.IPC_get_custom_whitelist()
         return render.blacklist(
             need_reboot=need_reboot,
+            setproxy_tip=setproxy_tip,
             bl_count=bl_count,
             bl_date=bl_date,
             custom_bl=u"\n".join(custom_bl),
@@ -128,11 +132,12 @@ class blacklist:
         
 class hosts:
     def GET(self):
-        global coordinator, need_reboot
+        global coordinator, need_reboot, setproxy_tip
         
         (_, enable, count, groups, date) = coordinator.IPC_hosts_info()
         return render.hosts(
             need_reboot=need_reboot,
+            setproxy_tip=setproxy_tip,
             enable=enable,
             domain_count=count,
             groups=groups,
@@ -347,8 +352,9 @@ class hosts_group:
                
                
 def create_app(ref):
-    global coordinator
+    global coordinator, setproxy_tip
     coordinator = ref
+    setproxy_tip = ref.IPC_setproxy_tip()
     return web.application(urls, globals(), autoreload=False).wsgifunc()
 
 if __name__ == '__main__':

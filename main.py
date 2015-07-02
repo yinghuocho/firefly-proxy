@@ -7,6 +7,7 @@ import time
 from datetime import datetime, date
 import multiprocessing
 import threading
+import webbrowser
 
 if getattr(sys, 'frozen', False):
     rootdir = os.path.dirname(sys.executable)
@@ -22,7 +23,7 @@ from component.ui import UI
 from component.admin import Admin
 from component.circumvention import CircumventionChannel, remote_update_meek_relays
 from component.local import HTTPProxy, SocksProxy
-from component.brz import Browser
+from component.brz import Browser, able_to_setproxy
 from component.matcher import create_matcher, blacklist_info, remote_update_blacklist
 from component.hosts import hosts_info, remote_update_hosts
     
@@ -133,10 +134,18 @@ class Coordinator(ActorObject):
     def start_browser(self, url=None):
         http_proxy_enabled = True if self.http_proxy else False
         socks_proxy_enabled = True if self.socks_proxy else False
-        #if not http_proxy_enabled and not socks_proxy_enabled:
-        #    return
         try:
-            self.browser = Browser(self.ref(), http_proxy_enabled, socks_proxy_enabled, initial_url=url)
+            if self.confdata['launch_browser']:
+                set_proxy = True
+            else:
+                set_proxy = False
+            
+            # if we cannot setproxy but required to, then we open config page which 
+            # gives a tip. 
+            if set_proxy and not able_to_setproxy() and not url:
+                url = self.admin.ref().IPC_url()
+                
+            self.browser = Browser(self.ref(), http_proxy_enabled, socks_proxy_enabled, initial_url=url, set_proxy=set_proxy)
             self.browser.start()
         except Exception, e:
             print "failed to launch browser failed: %s" % str(e)
@@ -243,6 +252,12 @@ class Coordinator(ActorObject):
             
     def IPC_open_admin_url(self):
         url =  self.admin.ref().IPC_url()
+        if sys.platform == "darwin":
+            # the browser-open routines do not work in some cases of OS X 
+            # use built-in interface to ensure admin url opens.  
+            webbrowser.open(url)
+            return
+        
         if self.browser and self.browser.is_alive():
             return self.browser.ref().IPC_open_url(url)
         else:
@@ -319,7 +334,12 @@ class Coordinator(ActorObject):
         
     def IPC_support_ssh(self):
         return self.cc_channel.ref().IPC_support_ssh()
-        
+    
+    def IPC_setproxy_tip(self):
+        if not self.confdata['launch_browser']:
+            return False
+        return not able_to_setproxy()
+    
 def close_std():
     sys.stdin.close()
     sys.stdin = open(os.devnull)
