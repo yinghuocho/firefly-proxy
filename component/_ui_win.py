@@ -22,6 +22,7 @@ class UI(ActorProcess):
         
     def run(self):
         init_logging()
+        self.start_actor()
         rootdir = self.coordinator.get('rootdir')
         confdata = self.coordinator.get('confdata')
         icon = os.path.join(rootdir, confdata['icon_path']) 
@@ -36,4 +37,5 @@ class UI(ActorProcess):
             on_quit=self.systray_quit,
             default_menu_index=1,
         )
+        self.quit_actor()
     

@@ -15,7 +15,7 @@ build_exe_options = {
 		"firefly-hosts-disabled.txt",
 		"custom-blacklist.txt",
 		"custom-whitelist.txt",
-        "meek-relays.txt",
+		"meek-relays.txt",
 		"cacert.pem",
 		"README.md",
 		"LICENSE",
@@ -47,7 +47,7 @@ exe = Executable(
 
 setup(
 	name = "firefly",
-	version = "0.2.0",
+	version = "0.3.0-alpha",
 	description = "an Internet censorship circumvention tool",
 	options = {"build_exe": build_exe_options},
 	executables = [exe]

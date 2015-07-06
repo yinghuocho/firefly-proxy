@@ -10,9 +10,13 @@ import threading
 import webbrowser
 
 if getattr(sys, 'frozen', False):
-    rootdir = os.path.dirname(sys.executable)
+    if sys.platform == "darwin":
+        rootdir = os.getcwd()
+    else:
+        rootdir = os.path.dirname(sys.executable)
 else:
     rootdir = os.path.dirname(os.path.realpath(__file__))
+    
 # make all filenames based on rootdir being unicode
 rootdir = rootdir.decode(sys.getfilesystemencoding())
 sys.path.append(rootdir)
@@ -73,10 +77,6 @@ class Coordinator(ActorObject):
         self.ref().share('rootdir', self.rootdir)
         self.ref().share('confdata', self.confdata)
         self.start_actor()
-        
-    def start_ui(self):
-        self.ui = UI(self.ref())
-        self.ui.start()
         
     def start_admin(self):
         self.admin = Admin(self.ref())
@@ -190,7 +190,6 @@ class Coordinator(ActorObject):
             self.initialize()
             self.start_cc_channel()
             self.start_admin()
-            self.start_ui()
             self.start_local_proxy()
         except Exception, e:
             print "failed to start basic steps/processes: %s, try to recover ..." % str(e)
@@ -201,7 +200,6 @@ class Coordinator(ActorObject):
             self.initialize()
             self.start_cc_channel()
             self.start_admin()
-            self.start_ui()
             self.start_local_proxy()
             
         self.backup_conf()
@@ -212,7 +210,8 @@ class Coordinator(ActorObject):
         t.daemon = True
         t.start()
         
-        self.ui.join()
+        self.ui = UI(self.ref())
+        self.ui.run()
         self.end()
         
     def end(self):
