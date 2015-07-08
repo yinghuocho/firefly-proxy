@@ -21,6 +21,7 @@ from component.admin import Admin
 from component.circumvention import CircumventionChannel, remote_update_meek_relays
 from component.local import HTTPProxy, SocksProxy
 from component.matcher import create_matcher, blacklist_info, remote_update_blacklist
+from component.brz import able_to_setproxy
 from component.hosts import hosts_info, remote_update_hosts
     
 class Coordinator(ActorObject):
@@ -270,6 +271,11 @@ class Coordinator(ActorObject):
         
     def IPC_support_ssh(self):
         return self.cc_channel.ref().IPC_support_ssh()
+    
+    def IPC_setproxy_tip(self):
+        if not self.confdata['launch_browser']:
+            return False
+        return not able_to_setproxy()
         
 def close_std():
     sys.stdin.close()

@@ -7,7 +7,6 @@ import time
 from datetime import datetime, date
 import multiprocessing
 import threading
-import webbrowser
 
 if getattr(sys, 'frozen', False):
     if sys.platform == "darwin":
@@ -21,7 +20,8 @@ else:
 rootdir = rootdir.decode(sys.getfilesystemencoding())
 sys.path.append(rootdir)
 
-from lib.utils import init_logging, local_update_datafile, set_ca_certs_env, singleton_check, singleton_clean
+from lib.utils import init_logging, local_update_datafile, set_ca_certs_env, singleton_check, singleton_clean,\
+    open_url
 from lib.ipc import ActorObject
 from component.ui import UI
 from component.admin import Admin
@@ -233,6 +233,10 @@ class Coordinator(ActorObject):
         singleton_clean(self.rootdir, self.singleton)
             
     # IPC interfaces
+    def IPC_quit(self):
+        self.end()
+        return True
+    
     def IPC_circumvention_url(self):
         """ask circumvention channel for forwarding url"""
         return self.cc_channel.ref().IPC_url()
@@ -254,7 +258,7 @@ class Coordinator(ActorObject):
         if sys.platform == "darwin":
             # the browser-open routines do not work in some cases of OS X 
             # use built-in interface to ensure admin url opens.  
-            webbrowser.open(url)
+            open_url(url)
             return
         
         if self.browser and self.browser.is_alive():

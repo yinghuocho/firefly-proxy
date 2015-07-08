@@ -8,6 +8,8 @@ import shutil
 import urlparse
 import urllib
 import os
+import webbrowser
+import subprocess
 
 import requests
 import requesocks
@@ -62,7 +64,7 @@ def load_file(filename, idna=True):
     if not idna:
         return data
     
-    ret = []    
+    ret = []
     for s in data:
         try:
             parts = s.split(" ")
@@ -181,3 +183,9 @@ def which(program):
             if is_exe(exe_file):
                 return exe_file
     return None
+
+def open_url(url):
+    if sys.platform=='darwin':
+        subprocess.Popen(['open', url])
+    else:
+        webbrowser.open(url)

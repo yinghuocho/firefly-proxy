@@ -5,9 +5,9 @@ import subprocess
 import codecs
 import urllib
 import urlparse
-import webbrowser
 
 from lib.ipc import ActorObject
+from lib.utils import open_url
 
 # proxy type
 SOCKS5 = 1
@@ -21,11 +21,11 @@ def launch_chrome(executable, url, rootdir, proxy_type, proxy_ip, proxy_port):
         
     cmdline = [
         executable,
-        u'-user-data-dir=%s' % os.path.join(rootdir, "chrome_user_data"),
+        u'--user-data-dir=%s' % os.path.join(rootdir, "chrome_user_data"),
         proxy_option,
-        '--proxy-bypass-list="*.local;<local>"',
-        '--host-resolver-rules="MAP * 0.0.0.0 , EXCLUDE %s"' % proxy_ip,
-        '--new-window',
+        r'--proxy-bypass-list=*.local;<local>',
+        r'--host-resolver-rules=MAP * 127.0.0.1,EXCLUDE %s' % proxy_ip,
+        r'--new-window',
         url,
     ]
     cmdline = [s.encode(sys.getfilesystemencoding()) for s in cmdline]
@@ -34,7 +34,7 @@ def launch_chrome(executable, url, rootdir, proxy_type, proxy_ip, proxy_port):
 def launch_chrome_tab(executable, url, rootdir):
     cmdline = [
         executable,
-        u'-user-data-dir=%s' % os.path.join(rootdir, "chrome_user_data"),
+        u'--user-data-dir=%s' % os.path.join(rootdir, "chrome_user_data"),
         '--proxy-bypass-list="*.local;<local>"',
         url,
     ]
@@ -145,7 +145,7 @@ class Browser(ActorObject):
         if self.socks_proxy_enabled:
             addrs[SOCKS5] = self.coordinator.IPC_socks_proxy_addr()
         if not addrs or not self.set_proxy:
-            webbrowser.open(url)
+            open_url(url)
             return None
         
         browsers = []
@@ -165,7 +165,7 @@ class Browser(ActorObject):
                     browsers.append((priority, addr, (launch_func, launch_tab_func, resume_proxy_func), executable, default))
                     break       
         if not browsers:
-            webbrowser.open(url)
+            open_url(url)
             return None
         # sort available browsers by pritority
         browsers.sort(key=lambda x: x[0], reverse=True)

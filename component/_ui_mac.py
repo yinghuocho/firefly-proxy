@@ -1,5 +1,3 @@
-import os
-
 from lib.ipc import ActorObject
 
 class UI(ActorObject):

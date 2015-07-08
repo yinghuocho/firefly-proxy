@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import os
 import rumps
 
@@ -10,7 +9,7 @@ class FireflyApp(rumps.App):
         rootdir = self.coordinator.get('rootdir')
         confdata = self.coordinator.get('confdata')
         icon = os.path.join(rootdir, confdata['icon_path'])
-        super(FireflyApp, self).__init__("Firefly", icon=icon, quit_button=u"退出")
+        super(FireflyApp, self).__init__("Firefly", icon=icon, quit_button=None)
         self.menu = [u'翻墙浏览', u'配置代理']
         
     @rumps.clicked(u'配置代理')
@@ -20,5 +19,10 @@ class FireflyApp(rumps.App):
     @rumps.clicked(u'翻墙浏览')
     def surf(self, _):
         self.coordinator.IPC_launch_browser()
+        
+    @rumps.clicked(u'退出')
+    def quit(self, _):
+        self.coordinator.IPC_quit()
+        rumps.quit_application()
         
         

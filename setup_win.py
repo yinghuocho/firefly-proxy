@@ -47,7 +47,7 @@ exe = Executable(
 
 setup(
 	name = "firefly",
-	version = "0.3.0-alpha",
+	version = "0.3.0",
 	description = "an Internet censorship circumvention tool",
 	options = {"build_exe": build_exe_options},
 	executables = [exe]

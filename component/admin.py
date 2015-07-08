@@ -17,14 +17,15 @@ class Admin(ActorProcess):
         
     def run(self):
         init_logging()
-        rootdir = self.coordinator.get('rootdir')
+        rootdir = self.coordinator.get('rootdir')   
         confdata = self.coordinator.get('confdata')
         webpath = os.path.join(rootdir, confdata['web_path'])
         os.chdir(webpath)
         
         from webpanel import app
         try:
-            WSGIServer((self.ip, self.port), application=app.create_app(self.coordinator), log=None).serve_forever()
+            svr = WSGIServer((self.ip, self.port), application=app.create_app(self.coordinator), log=None)
+            svr.serve_forever()
         except socket.error, e:  # @UndefinedVariable
             print "failed to start web admin: %s, change port then try again" % str(e)
             self.port = idle_port()
