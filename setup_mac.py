@@ -26,13 +26,13 @@ DATA_FILES = [
 ]
 OPTIONS = {
     'iconfile': 'firefly.icns',
-    'plist': {'CFBundleShortVersionString':'0.3.0a1',},
+    'plist': {'CFBundleShortVersionString':'0.3.0',},
     'argv_emulation': True
 }
 
 setup(
     name="Firefly",
-    version="0.3.0a1",
+    version="0.3.0",
     app=APP,
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
