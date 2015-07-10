@@ -185,7 +185,7 @@ class Browser(ActorObject):
         confdata = self.coordinator.get('confdata')
         rootdir = self.coordinator.get('rootdir')
         defaultpage = confdata['home_page']
-        if not defaultpage.startswith("http://"):
+        if not defaultpage.startswith("http"):
             defaultpage = os.path.join(rootdir, defaultpage)
         return defaultpage
     

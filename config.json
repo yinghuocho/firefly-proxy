@@ -16,11 +16,11 @@
         "timeout": 0
     },
     "circumvention_chan_ssh": {
-        "auth": "key",
+        "auth": "pwd",
         "keyfile": "",
         "password": "",
         "server_name": "",
-        "server_port": 0,
+        "server_port": 22,
         "username": ""
     },
     "circumvention_chan_type": "meek",
@@ -29,8 +29,8 @@
     "custom_blacklist": "custom-blacklist.txt",
     "custom_whitelist": "custom-whitelist.txt",
     "enable_http_proxy": 1,
-    "enable_socks_proxy": 0,
-    "home_page": "webpanel/static/html/ifanqiang.html",
+    "enable_socks_proxy": 1,
+    "home_page": "https://gofirefly.org/page/index.html",
     "hosts": {
         "data": "firefly-hosts.txt",
         "data_url": "https://gofirefly.org/resource/hosts/firefly-hosts.txt",
