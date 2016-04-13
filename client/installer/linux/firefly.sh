@@ -1,0 +1,24 @@
+#!/bin/bash
+
+FIREFLY_SCRIPT=$(readlink -f "$0")
+FIREFLY_SCRIPT_DIR=$(dirname "$FIREFLY_SCRIPT")
+FIREFLY_SYS_BIN=$FIREFLY_SCRIPT_DIR/firefly-bin
+
+FIREFLY_USER_DIR=$HOME/.firefly
+FIREFLY_SYS_BIN_HASH=$FIREFLY_USER_DIR/bin/firefly.sha1
+FIREFLY_USER_BIN=$FIREFLY_USER_DIR/bin/firefly
+
+if [ -f $FIREFLY_SYS_BIN_HASH ]; then
+    sha1sum -c $FIREFLY_SYS_BIN_HASH || rm -f $FIREFLY_USER_BIN;
+else
+    rm -f $FIREFLY_USER_BIN;
+fi
+
+if [ ! -f $FIREFLY_USER_BIN ]; then
+    mkdir -p $FIREFLY_USER_DIR/bin
+    cp $FIREFLY_SYS_BIN $FIREFLY_USER_BIN
+    sha1sum $FIREFLY_SYS_BIN > $FIREFLY_SYS_BIN_HASH
+    chmod +x $FIREFLY_USER_BIN
+fi
+
+exec "$FIREFLY_USER_BIN" "$@"

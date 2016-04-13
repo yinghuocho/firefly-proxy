@@ -1,0 +1,18 @@
+{
+    "TRAY_QUIT": "Quit",
+    "TRAY_SETTINGS": "Settings",
+    "PAC_SETUP": "Firefly would like to be your system proxy",
+    "UI_TITLE": "Firefly Info/Settings",
+    "UI_ADDR": "Proxy Address",
+    "UI_HTTPADDR": "HTTP proxy address",
+    "UI_SOCKSADDR": "SOCKS proxy address",
+    "UI_SETTINGS": "Settings",
+    "UI_FIREFOXHELP": "Firefox by-default does not recognize Firefly's automatic proxy settings, please set proxy yourself using the addresses showing in \"Proxy Address\", or do the following steps: \"menu\" &#8594; \"preferences\" &#8594; \"Advanced\" &#8594; \"Network\" &#8594; \"Settings...\" &#8594; \"User system proxy settings\"", 
+    "UI_PROXY_ALL": "Proxy all traffic (Note: When this option is not marked, Firefly loads <a href=\"domains\" target=\"_blank\">an embedded list of blocked websites</a>, and only proxies requests to these websites. This usually works well. If you cannot access a website, maybe the website is blocked but is not included in the embedded list. You can enable this option and try again)",
+    "UI_SETTINGS_PAGE": "Open (this) settings page when Firefly starts",
+    "UI_LANDING_PAGE": "Open embedded landing page when Firefly starts",
+    "UI_STOP_AUTOUPDATE": "Stop automatically updating to latest version",
+    "UI_FEEDBACK": "Issues/Feedback",
+    "UI_CLICK_LINK": "Please click this link",
+    "UI_LANG": "Language"
+}

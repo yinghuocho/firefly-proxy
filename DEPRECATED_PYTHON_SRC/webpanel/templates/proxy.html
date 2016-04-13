@@ -1,0 +1,287 @@
+<%inherit file="base.html"/>
+
+<%block name="nav">
+    <ul class="nav nav-sidebar">
+        <li class="active"><a href="/proxy">代理配置</a></li>
+        <li><a href="/blacklist">黑名单配置</a></li>
+        <li><a href="/hosts">Hosts 配置</a></li>
+        <li><a href="https://gofirefly.org/share" target="_blank">分享给朋友</a></li>
+        <li><a href="/about">关于</a></li>
+    </ul>  
+</%block>
+
+<%block name="main">
+    <form id="default-proxy-settings" action="/proxy/settings/default" method="post" role="form">
+        <button type="submit">一键回复默认配置</button>
+        <span class="small alert alert-success" style="display:none"></span>
+        <span class="small alert alert-danger" style="display:none"></span>
+    </form>
+    <hr>
+    <h3 class="page-header"><a id="local">本地代理</a></h3>
+    <form id="local-proxy-settings" action="/proxy/settings/local" method="post" role="form">
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" id="enable_http_proxy" name="enable_http_proxy" value=1
+                    % if confdata['enable_http_proxy']:
+                        checked
+                    % endif
+                >启动 HTTP/HTTPS 代理
+            </label>
+        </div>
+        <div class="row form-group form-horizontal">
+            <label class="col-sm-2 control-label text-right" for="http_proxy_ip">本地IP：</label>
+            <div class="col-sm-2">
+                <input type="text" class="form-control"
+                       id="http_proxy_ip" name="http_proxy_ip" value="${confdata['http_proxy_ip']}">
+            </div>
+            
+            <label class="col-sm-1 control-label text-right" for="http_proxy_port">本地端口：</label>
+            <div class="col-sm-1">
+                <input type="text" class="form-control"
+                       id="http_proxy_port" name="http_proxy_port" value=${confdata['http_proxy_port']}>
+            </div>
+        </div>
+        <hr>
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" id="enable_socks_proxy" name="enable_socks_proxy" value=1
+                    % if confdata['enable_socks_proxy']:
+                        checked
+                    % endif
+                >启动 SOCKS5 代理
+            </label>
+        </div>
+        <div class="row form-group form-horizontal"> 
+            <label class="col-sm-2 control-label text-right" for="socks_proxy_ip">本地IP：</label>
+            <div class="col-sm-2">
+                <input type="text" class="form-control"
+                       id="socks_proxy_ip" name="socks_proxy_ip" value="${confdata['socks_proxy_ip']}">
+            </div>
+            
+            <label class="col-sm-1 control-label text-right" for="socks-port">本地端口：</label>
+            <div class="col-sm-1">
+                <input type="text" class="form-control"
+                       id="socks_proxy_port" name="socks_proxy_port" value="${confdata['socks_proxy_port']}">
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <button type="submit" class="btn btn-default btn-sm">保存本地代理配置</button>
+            <span class="small alert alert-success" style="display:none"></span>
+            <span class="small alert alert-danger" style="display:none"></span>
+        </div>
+    </form>
+    <br>
+        
+    <h3 class="page-header"><a id="circumvention">翻墙代理</a></h3>
+    <form id="circumvention-settings" action="/proxy/settings/circumvention" method="post" role="form">
+        <div class="row form-group form-horizontal">
+            <h4>代理地址：</h4>
+            <label class="col-sm-2 control-label text-right" for="circumvention_proxy_ip">本地IP：</label>
+            <div class="col-sm-2">
+                <input type="text" class="form-control"
+                       id="circumvention_proxy_ip" name="circumvention_proxy_ip" value="${confdata['circumvention_proxy_ip']}">
+            </div>
+            
+            <label class="col-sm-1 control-label text-right" for="circumvention_proxy_port">本地端口：</label>
+            <div class="col-sm-1">
+                <input type="text" class="form-control"
+                       id="circumvention_proxy_port" name="circumvention_proxy_port" value="${confdata['circumvention_proxy_port']}">
+            </div>
+        </div>
+        <hr>
+            
+        <div class="row form-group form-horizontal">
+            <h4>翻墙通道：</h4>
+            <div class="row">
+                <div class="radio col-md-offset-1">
+                    <label>
+                        <input type="radio" name="circumvention_chan_type" id="circumvention_chan_meek" value="meek"
+                            % if confdata['circumvention_chan_type'] == "meek":
+                               checked
+                            % endif
+                        >
+                        meek （内建翻墙通道）
+                    </label>
+                </div>
+            </div>
+                
+            % if support_ssh:
+            <div class="row">
+                <div class="radio col-md-offset-1">
+                    <label>
+                        <input type="radio" name="circumvention_chan_type" id="circumvention_chan_ssh" value="ssh"
+                            % if confdata['circumvention_chan_type'] == "ssh":
+                               checked
+                            % endif
+                        >
+                        基于 SSH 的 SOCKS5 代理
+                    </label>
+                </div>
+            </div>
+  
+            <div class="row">
+                <label class="col-sm-2 control-label text-right" for="ssh_server_name">远程IP：</label>
+                <div class="col-sm-2">
+                    <input type="text" class="form-control"
+                        id="ssh_server_name" name="ssh_server_name" value="${confdata['circumvention_chan_ssh']['server_name']}">
+                </div>
+                
+                <label class="col-sm-1 control-label text-right" for="ssh_server_port">远程端口：</label>
+                <div class="col-sm-1">
+                    <input type="text" class="form-control"
+                        id="ssh_server_port" name="ssh_server_port" value="${confdata['circumvention_chan_ssh']['server_port']}">
+                </div>
+                
+                <label class="col-sm-1 control-label text-right" for="ssh_username">用户名：</label>
+                <div class="col-sm-1">
+                    <input type="text" class="form-control"
+                        id="ssh_username" name="ssh_username" value="${confdata['circumvention_chan_ssh']['username']}">
+                </div>  
+            </div>
+            
+            
+            <div class="row">
+                <div class="radio col-md-2 text-right">
+                    <label>
+                        <input type="radio" name="ssh_auth" id="ssh_auth" value="pwd"
+                            % if confdata['circumvention_chan_ssh']['auth'] == "pwd":
+                               checked
+                            % endif
+                        >密码认证
+                    </label>
+                </div>
+            </div>
+                
+            <div class="row"> 
+                <label class="col-sm-2 control-label text-right" for="ssh_password">密码：</label>
+                <div class="col-sm-2">
+                    <input type="text" class="form-control"
+                           id="ssh_password" name="ssh_password" value="${confdata['circumvention_chan_ssh']['password']}">
+                </div>
+            </div>
+            <div class="row">
+                <div class="radio col-sm-2 text-right">
+                    <label>
+                        <input type="radio" name="ssh_auth" id="ssh_auth" value="key"
+                            % if confdata['circumvention_chan_ssh']['auth'] == "key":
+                               checked
+                            % endif
+                        >
+                        私钥认证
+                    </label>
+                </div>
+            </div>
+            <div class="row"> 
+                <label class="col-sm-2 control-label text-right" for="ssh_keyfile">路径：</label>
+                <div class="col-sm-6">
+                    <input type="text" class="form-control"
+                           id="ssh_keyfile" name="ssh_keyfile" value="${confdata['circumvention_chan_ssh']['keyfile']}">
+                </div>
+            </div>
+            % endif
+        
+            <div class="row">
+                <div class="radio col-md-offset-1">
+                    <label>
+                        <input type="radio" name="circumvention_chan_type" id="circumvention_chan_shadowsocks" value="shadowsocks"
+                            % if confdata['circumvention_chan_type'] == "shadowsocks":
+                               checked
+                            % endif
+                        >
+                        基于 Shadowsocks 的 SOCKS5 代理
+                    </label>
+                </div>
+            </div>
+            <div class="row">
+                <label class="col-sm-2 control-label text-right" for="shadowsocks_server_name">远程IP：</label>
+                <div class="col-sm-2">
+                    <input type="text" class="form-control"
+                        id="shadowsocks_server_name" name="shadowsocks_server_name" value="${confdata['circumvention_chan_shadowsocks']['server_name']}">
+                </div>
+                
+                <label class="col-sm-1 control-label text-right" for="shadowsocks_server_port">远程端口：</label>
+                <div class="col-sm-1">
+                    <input type="text" class="form-control"
+                        id="shadowsocks_server_port" name="shadowsocks_server_port" value="${confdata['circumvention_chan_shadowsocks']['server_port']}">
+                </div>
+                
+                <label class="col-sm-1 control-label text-right" for="shadowsocks_password">密码：</label>
+                <div class="col-sm-1">
+                    <input type="text" class="form-control"
+                        id="shadowsocks_password" name="shadowsocks_password" value="${confdata['circumvention_chan_shadowsocks']['password']}">
+                </div>
+            </div>
+            <br>
+            <div class="row">
+                <label class="col-sm-2 control-label text-right" for="shadowsocks_method">加密方式：</label>
+                <div class="col-sm-2">
+                    <select class="form-control" id="shadowsocks_method" name="shadowsocks_method">
+                        % for method in shadowsocks_methods:
+                            % if method == confdata['circumvention_chan_shadowsocks']['method']:
+                                <option selected>${method}</option>
+                            % else:
+                                <option>${method}</option>
+                            % endif
+                        % endfor
+                    </select>
+                </div>
+                
+                <label class="col-sm-1 control-label text-right" for="shadowsocks_timeout">超时(秒)：</label>
+                <div class="col-sm-1">
+                    <input type="text" class="form-control"
+                        id="shadowsocks_timeout" name="shadowsocks_timeout" value="${confdata['circumvention_chan_shadowsocks']['timeout']}">
+                </div>
+                
+                <div class="checkbox col-sm-2 text-right">
+                    <label>
+                        <input type="checkbox" id="shadowsocks_fast_open" name="shadowsocks_fast_open" value=1
+                            % if confdata['circumvention_chan_shadowsocks']['fast_open']:
+                                checked
+                            % endif
+                        >TCP Fast Open
+                    </label>
+                </div>
+            </div>
+        
+            <hr>
+            <div class="row">
+                <button type="submit" class="btn btn-default btn-sm">保存翻墙代理配置</button>
+                <span class="small alert alert-success" style="display:none"></span>
+                <span class="small alert alert-danger" style="display:none"></span>
+            </div>
+        </div>
+    </form>
+    <br>
+  
+    <h3 class="page-header"><a id="browser">浏览器</a></h3>
+    <form id="browser-settings" action="/proxy/settings/browser" method="post" role="form">
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" name="launch_browser" value=1
+                    % if confdata['launch_browser']:
+                        checked
+                    % endif
+                >启动系统默认浏览器并自动设置浏览器代理
+            </label>
+        </div>
+        <div class="row form-group form-horizontal"> 
+            <label class="col-sm-2 control-label text-right" for="ssh_keyfile">主页：</label>
+            <div class="col-sm-6">
+                <input type="text" class="form-control"
+                       id="home_page" name="home_page" value="${confdata['home_page']}">
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <button type="submit" class="btn btn-default btn-sm">保存浏览器配置</button>
+            <span class="small alert alert-success" style="display:none"></span>
+            <span class="small alert alert-danger" style="display:none"></span>
+        </div>
+    </form>
+</%block>
+
+<%block name="extrajs">
+<script src="/static/js/fl.js"></script>
+</%block>
+

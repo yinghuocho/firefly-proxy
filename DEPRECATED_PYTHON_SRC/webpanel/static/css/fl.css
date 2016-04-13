@@ -1,0 +1,6 @@
+.form-group div ,
+.form-group label,
+.form-group input {
+    padding-left: 0px;
+    padding-right: 0px;
+}

@@ -1,0 +1,18 @@
+{
+    "TRAY_QUIT": "退出",
+    "TRAY_SETTINGS": "设置",
+    "PAC_SETUP": "Firefly 需要设置你的系统代理",
+    "UI_TITLE": "Firefly 信息/配置",
+    "UI_ADDR": "代理地址",
+    "UI_HTTPADDR": "HTTP 代理地址",
+    "UI_SOCKSADDR": "SOCKS 代理地址",
+    "UI_SETTINGS": "配置",
+    "UI_FIREFOXHELP": "Firefox 默认不使用 Firefly 自动设置的系统代理, 请使用 \"代理地址\" 中显示的地址自己设置代理, 或进行以下操作: \"菜单\" &#8594; \"选项\" &#8594; \"高级\" &#8594; \"网络\" &#8594; \"设置...\" &#8594; \"使用系统代理设置\"",
+    "UI_PROXY_ALL": "通过代理转发所有请求 (说明: 当本选项未选择时, Firefly 会加载<a href=\"domains\" target=\"_blank\">一个内置的被封网站列表</a>. 只有向这些网站发送的请求会通过代理转发. 一般情况下这一选项无需打开. 如果遇到有的网站无法打开, 可能是网站已经被封但不在内置的列表中. 这时候你可以打开这一选项，然后重试)",
+    "UI_SETTINGS_PAGE": "Firefly 启动时自动打开配置界面(即本页面)",
+    "UI_LANDING_PAGE": "Firefly 启动时自动打开内置首页",
+    "UI_STOP_AUTOUPDATE": "停止自动版本更新",
+    "UI_FEEDBACK": "问题/反馈",
+    "UI_CLICK_LINK": "请打开这个链接",
+    "UI_LANG": "语言"
+}

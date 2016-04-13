@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Firefly
+GenericName=Firefly
+Comment=Firefly
+Exec=firefly
+Icon=firefly
+Terminal=false
+Type=Application
+Categories=Network;

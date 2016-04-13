@@ -1,0 +1,9 @@
+resources/meektunnels.txt
+Firefly.app
+firefly_darwin_amd64
+firefly_linux_amd64
+firefly_*.exe
+update_*
+*.dmg
+*.deb
+firefly-*.nsi

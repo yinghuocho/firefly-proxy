@@ -1,0 +1,6 @@
+a gevent based SOCKS5 proxy with flexible relays.
+
+dependencies
+============
+    * gevent
+    * dpkt

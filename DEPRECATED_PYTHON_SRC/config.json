@@ -1,0 +1,51 @@
+{
+    "blacklist": "firefly-blacklist.txt",
+    "blacklist_meta": "firefly-blacklist.meta.json",
+    "blacklist_meta_url": "https://gofirefly.org/resource/blacklist/firefly-blacklist.meta.json",
+    "blacklist_url": "https://gofirefly.org/resource/blacklist/firefly-blacklist.txt",
+    "circumvention_chan_meek": {
+        "relays": "meek-relays.txt",
+        "url": "https://gofirefly.org/resource/meek/relays.txt"
+    },
+    "circumvention_chan_shadowsocks": {
+        "fast_open": 0,
+        "method": "",
+        "password": "",
+        "server_name": "",
+        "server_port": 0,
+        "timeout": 0
+    },
+    "circumvention_chan_ssh": {
+        "auth": "pwd",
+        "keyfile": "",
+        "password": "",
+        "server_name": "",
+        "server_port": 22,
+        "username": ""
+    },
+    "circumvention_chan_type": "meek",
+    "circumvention_proxy_ip": "127.0.0.1",
+    "circumvention_proxy_port": 20151,
+    "custom_blacklist": "custom-blacklist.txt",
+    "custom_whitelist": "custom-whitelist.txt",
+    "enable_http_proxy": 1,
+    "enable_socks_proxy": 1,
+    "home_page": "https://gofirefly.org/page/index.html",
+    "hosts": {
+        "data": "firefly-hosts.txt",
+        "data_url": "https://gofirefly.org/resource/hosts/firefly-hosts.txt",
+        "disabled": "firefly-hosts-disabled.txt",
+        "enable": 1,
+        "meta": "firefly-hosts.meta.json",
+        "meta_url": "https://gofirefly.org/resource/hosts/firefly-hosts.meta.json"
+    },
+    "http_proxy_ip": "127.0.0.1",
+    "http_proxy_port": 20149,
+    "icon_path": "webpanel/static/img/favicon.ico",
+    "launch_browser": 1,
+    "socks_proxy_ip": "127.0.0.1",
+    "socks_proxy_port": 20150,
+    "web_path": "webpanel",
+    "webadmin_ip": "127.0.0.1",
+    "webadmin_port": 20160
+}

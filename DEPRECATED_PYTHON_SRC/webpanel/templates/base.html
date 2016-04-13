@@ -1,0 +1,61 @@
+<html lang="cn">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="">
+        <meta name="author" content="yinghuocho">
+        <link rel="icon" href="/static/img/favicon.ico">
+        <title>萤火虫翻墙代理 - 配置</title>
+        
+        <!-- Bootstrap core CSS -->
+        <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+        <!-- Custom styles for this template -->
+        <link href="/static/css/dashboard.css" rel="stylesheet">
+        <link href="/static/css/fl.css" rel="stylesheet">
+        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!--[if lt IE 9]>
+        <script src="/static/js/html5shiv.min.js"></script>
+        <script src="/static/js/respond.min.js"></script>
+        <![endif]-->
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-3 col-md-2 sidebar">
+                    <%block name="nav">
+                    <ul class="nav nav-sidebar">
+                        <li><a href="/proxy">代理配置</a></li>
+                        <li><a href="/blacklist">黑名单配置</a></li>
+                        <li><a href="/hosts">Hosts 配置</a></li>
+                        <li><a href="https://gofirefly.org/share" target="_blank">分享给朋友</a></li>
+                        <li><a href="/about">关于</a></li>
+                    </ul>  
+                    </%block>
+                </div>
+                
+                <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+                    % if setproxy_tip:
+                        <h4 class="alert alert-warning"><strong>Firefly 试图自动设置浏览器代理，但没有找到支持的浏览器．如果你知道如何设置浏览器代理，请自己设置．如果你不知道，请安装 Chrome（谷歌浏览器） 或 Firefox（火狐浏览器），再重新启动 Firefly．</strong></h4>
+                    % endif
+                    
+                    % if need_reboot:
+                        <h4 class="alert alert-warning"><strong>请重启代理，以便配置修改生效</strong></h4>
+                    % endif
+                    <%block name="main">
+                    </%block>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bootstrap core JavaScript
+        ================================================== -->
+        <!-- Placed at the end of the document so the pages load faster -->
+        <script src="/static/js/jquery.min.js"></script>
+        <script src="/static/js/bootstrap.min.js"></script>
+        <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+        <script src="/static/js/ie10-viewport-bug-workaround.js"></script>
+        <%block name="extrajs"></%block>
+    </body>
+</html>
+        
