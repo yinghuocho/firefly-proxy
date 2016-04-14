@@ -1,5 +1,5 @@
-VERSION := 0.4.0
-SHORTVERSION := 0.4.0
+VERSION := 0.4.1
+SHORTVERSION := 0.4.1
 
 .PHONY: windows package-windows linux package-linux darwin package-darwin clean
 

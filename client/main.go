@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	FIREFLY_VERSION = "0.4.0"
+	FIREFLY_VERSION = "0.4.1"
 )
 
 type clientOptions struct {
