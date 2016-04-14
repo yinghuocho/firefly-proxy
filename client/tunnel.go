@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"log"
 	"math/rand"
@@ -24,6 +25,7 @@ type tunnelPeer interface {
 }
 
 type tunnelHandler struct {
+	caCerts *x509.CertPool
 	appData *utils.AppData
 
 	quit chan bool

@@ -1,0 +1,2 @@
+# format:  front_url,real_host
+https://a0.awsstatic.com,d288jep9bb0hx9.cloudfront.net

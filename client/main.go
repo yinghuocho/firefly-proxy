@@ -154,14 +154,14 @@ func (c *fireflyClient) loadUpdateKey() (*rsa.PublicKey, error) {
 	return pubkey.(*rsa.PublicKey), nil
 }
 
-func (c *fireflyClient) loadUpdateCaCerts() *x509.CertPool {
+func (c *fireflyClient) loadCaCerts() *x509.CertPool {
 	var certs []byte
 	var err error
 	path := c.options.updateCaCerts
 	if path != "" {
 		certs, err = ioutil.ReadFile(path)
 	} else {
-		certs, err = c.fs.Get("keys/updateca.pem")
+		certs, err = c.fs.Get("keys/cacerts.pem")
 	}
 	if err != nil {
 		return nil
@@ -244,7 +244,7 @@ func (c *fireflyClient) startUpdater() {
 	proxyURL, _ := url.Parse("http://" + c.httpListener.Addr().String())
 	privKey, e := c.loadUpdateKey()
 	if e == nil {
-		caCerts := c.loadUpdateCaCerts()
+		caCerts := c.loadCaCerts()
 		c.updater = newUpdater(FIREFLY_VERSION, 2*time.Hour, privKey, caCerts, c.options.updateURL, proxyURL)
 		go c.updater.run()
 	}
@@ -472,6 +472,7 @@ func (c *fireflyClient) _main() {
 		os.Exit(1)
 	}
 	handler := &tunnelHandler{
+		caCerts: c.loadCaCerts(),
 		appData: c.appData,
 		ch:      make(chan *tunnelRequest),
 		quit:    make(chan bool),
