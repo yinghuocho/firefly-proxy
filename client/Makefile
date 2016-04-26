@@ -1,6 +1,8 @@
 VERSION := 0.4.1
 SHORTVERSION := 0.4.1
 
+DESC := "A proxy software for censorship circumvention"
+
 .PHONY: windows package-windows linux package-linux darwin package-darwin clean
 
 define fpm-debian-build 
@@ -24,7 +26,7 @@ define fpm-debian-build
 	chmod -x $$WORKDIR/usr/bin/firefly-bin && \
 	chmod +x $$WORKDIR/usr/bin/firefly && \
 	\
-	fpm -a $$PKG_ARCH -s dir -t deb -n firefly -v $$VERSION -C $$WORKDIR -f usr;
+	fpm --license BSD --description "$$DESC" --vendor yinghuocho --maintainer "yinghuocho <yinghuocho@gmail.com>" --url https://gofirefly.org/ -a $$PKG_ARCH -s dir -t deb -n firefly -v $$VERSION -C $$WORKDIR -f usr;
 endef
 
 windows:

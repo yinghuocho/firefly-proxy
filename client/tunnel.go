@@ -167,8 +167,8 @@ func (t *tunnelHandler) dialParallel(timeout time.Duration) (net.Conn, tunnelPee
 			}
 			close(quit)
 			return r.c, r.p, failedPeers
-		case <-time.After(100 * time.Millisecond):
-			// every 100 ms, fire a waiting one
+		case <-time.After(200 * time.Millisecond):
+			// every 200 ms, fire a waiting one
 			if waiting > 0 {
 				token <- true
 				waiting -= 1
