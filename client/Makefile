@@ -1,7 +1,5 @@
-VERSION := 0.4.1
-SHORTVERSION := 0.4.1
-
-DESC := "A proxy software for censorship circumvention"
+VERSION := 0.4.2
+SHORTVERSION := 0.4.2
 
 .PHONY: windows package-windows linux package-linux darwin package-darwin clean
 
@@ -11,6 +9,7 @@ define fpm-debian-build
 	VERSION=$2 && \
 	WORKDIR=$$(mktemp -dt "$$(basename $$0).XXXXXXXXXX") && \
 	INSTALLER_RESOURCES=./installer/linux && \
+	DESC="A proxy software for censorship circumvention" && \
 	\
 	mkdir -p $$WORKDIR/usr/bin && \
 	mkdir -p $$WORKDIR/usr/share/applications && \
