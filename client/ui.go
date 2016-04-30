@@ -7,10 +7,10 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"os"
+	"net/url"
 	"strings"
 	"time"
-	
+
 	"github.com/skratchdot/open-golang/open"
 
 	"github.com/yinghuocho/i18n"
@@ -27,98 +27,18 @@ var (
 	}
 )
 
-const (
-	settingsTemplate = `
-<!DOCTYPE html>
-<html>
-<head>
-<title>{{ i18n "UI_TITLE" }}</title>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<base href={{ .Root }}>
-<script type="text/javascript" src="static/js/jquery-1.12.3.min.js"></script>
-</head>
-<body>
-<p>
-<h1>{{ .Version }}</h1>
-</p>
-
-<p>
-<img src="static/icons/128.ico" alt="Firefly"></img>
-</p>
-
-<div id="alert">
-</div>
-
-<h2>{{ i18n "UI_LANG" }}</h2>
-<ul style="list-style: none;">
-<li>
-<select id="locale">
-{{ range $key, $value := .Locales }}
-	<option value="{{ $key }}" {{ if eq $.CurrentLocale $key }} selected {{ end }}>{{ $value }}</option>
-{{ end }}
-</select>
-</li>
-</ul>
-
-<h2>{{ i18n "UI_ADDR" }}</h2>
-<ul style="list-style: none;">
-<li>{{ i18n "UI_HTTPADDR" }}: {{ .HTTPProxyAddr }} </li>
-<li>{{ i18n "UI_SOCKSADDR" }}: {{ .SocksProxyAddr }} </li>	
-</ul>
-
-<h2>{{ i18n "UI_SETTINGS" }}</h2>
-<ul style="list-style: none;">
-<li><label><input type="checkbox" id="tunnellingAll" {{ if .TunnellingAll }} checked {{ end }}> {{ i18n "UI_PROXY_ALL" | unescaped }} </label></li>
-<li><label><input type="checkbox" id="openSettingsPage" {{ if .OpenSettingsPage }} checked {{ end }}> {{ i18n "UI_SETTINGS_PAGE" }} </label></li>
-<li><label><input type="checkbox" id="openLandingPage" {{ if .OpenLandingPage }} checked {{ end }}> {{ i18n "UI_LANDING_PAGE" }}: <a href={{ .LandingPage }} target="_blank">{{ .LandingPage }}</a></label></li>
-<li><label><input type="checkbox" id="stopAutoUpdate" {{ if .StopAutoUpdate }} checked {{ end }}> {{ i18n "UI_STOP_AUTOUPDATE" }} </label></li>
-</ul>
-
-<h2>{{ i18n "UI_FEEDBACK" }}</h2>
-<ul style="list-style: none;">
-<li>{{ i18n "UI_CLICK_LINK" }}: <a href="https://github.com/yinghuocho/firefly-proxy/issues" target="_blank">https://github.com/yinghuocho/firefly-proxy/issues</a></label></li>
-</ul>
-
-<script>
-$(document).ready(function(e) {
-	if( /firefox/.test(navigator.userAgent.toLowerCase()) ) {
-		$("#alert").append("<h3><strong>{{ i18n "UI_FIREFOXHELP" }}</strong></h3>")
-	}
-}); 
-  	
-  	$("input:checkbox").change(function() { 
-    	var isChecked = $(this).is(":checked") ? 1:0; 
-        $.ajax({
-        	url: 'settings',
-            type: 'POST',
-            data: { id:$(this).attr("id"), state:isChecked }
-        });        
-    }); 
-    
-    $('select').on('change', function() {
-  		var state = this.value;
-  		$.ajax({
-        	url: 'settings',
-            type: 'POST',
-            data: { id:$(this).attr("id"), state:state },
-            success: function() {
-    			window.location.reload(true);
-			},
-        });	
-	});      
-</script>
-
-</body>
-</html>
-	`
-)
-
 type fireflyUI struct {
 	token       string
 	mux         *http.ServeMux
 	root        string
 	settingsUrl string
 	client      *fireflyClient
+}
+
+type uiCmd struct {
+	cmd  string
+	args interface{}
+	ret  chan interface{}
 }
 
 func token() string {
@@ -170,15 +90,11 @@ func (u *fireflyUI) open(url string) {
 }
 
 func (u *fireflyUI) domains(w http.ResponseWriter, req *http.Request) {
-	if _, err := os.Stat(u.client.options.blockedDomainFile); err == nil {
-		http.ServeFile(w, req, u.client.options.blockedDomainFile)
+	data, err := u.client.loadEmbeddedTunnellingDomains()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
-		data, err := u.client.loadEmbeddedBlockedDomains()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			w.Write(data)
-		}
+		w.Write(data)
 	}
 }
 
@@ -193,37 +109,44 @@ func (u *fireflyUI) settings(w http.ResponseWriter, req *http.Request) {
 }
 
 type fireflySettings struct {
-	Root             string
-	Version          string
-	HTTPProxyAddr    string
-	SocksProxyAddr   string
-	LandingPage      string
-	TunnellingAll    bool
-	OpenSettingsPage bool
-	OpenLandingPage  bool
-	StopAutoUpdate   bool
-	Locales          map[string]string
-	CurrentLocale    string
+	Root                    string
+	Version                 string
+	HTTPProxyAddr           string
+	SocksProxyAddr          string
+	LandingPage             string
+	CustomTunnellingDomains string
+	TunnellingAll           bool
+	OpenSettingsPage        bool
+	OpenLandingPage         bool
+	StopAutoUpdate          bool
+	Locales                 map[string]string
+	CurrentLocale           string
 }
 
 func (u *fireflyUI) settingsGET(w http.ResponseWriter, req *http.Request) {
-	t, err := template.New("settings").Funcs(templateFuncMap).Parse(settingsTemplate)
+	s, err := u.client.fs.Get("ui.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	t, err := template.New("settings").Funcs(templateFuncMap).Parse(string(s))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	settings := &fireflySettings{
-		Root:             u.root,
-		Version:          u.client.version(),
-		HTTPProxyAddr:    u.client.httpListener.Addr().String(),
-		SocksProxyAddr:   u.client.socksListener.Addr().String(),
-		LandingPage:      u.client.options.landingPage,
-		TunnellingAll:    u.client.socksHandler.tunnellingAll,
-		OpenSettingsPage: u.client.openSettingsPage(),
-		OpenLandingPage:  u.client.openLandingPage(),
-		StopAutoUpdate:   u.client.stopAutoUpdate(),
-		Locales:          locales,
-		CurrentLocale:    i18n.CurrentLocale(),
+		Root:                    u.root,
+		Version:                 u.client.uiVersion(),
+		HTTPProxyAddr:           u.client.uiHTTPAddr(),
+		SocksProxyAddr:          u.client.uiSocksAddr(),
+		LandingPage:             u.client.uiLandingPage(),
+		TunnellingAll:           u.client.uiTunnellingAll(),
+		OpenSettingsPage:        u.client.uiOpenSettingsPage(),
+		OpenLandingPage:         u.client.uiOpenLandingPage(),
+		StopAutoUpdate:          u.client.uiStopAutoUpdate(),
+		CustomTunnellingDomains: u.client.uiCustomTunnellingDomains(),
+		Locales:                 locales,
+		CurrentLocale:           u.client.uiCurrentLocale(),
 	}
 	err = t.Execute(w, settings)
 	if err != nil {
@@ -241,34 +164,178 @@ func (u *fireflyUI) settingsPOST(w http.ResponseWriter, req *http.Request) {
 	switch id {
 	case "tunnellingAll":
 		if state == "1" {
-			u.client.uiCommand("tunnellingAllOn")
+			u.client.uiCommand(&uiCmd{cmd: "tunnellingAllOn"})
 		} else {
-			u.client.uiCommand("tunnellingAllOff")
+			u.client.uiCommand(&uiCmd{cmd: "tunnellingAllOff"})
 		}
 	case "openSettingsPage":
 		if state == "1" {
-			u.client.uiCommand("openSettingsPageOn")
+			u.client.uiCommand(&uiCmd{cmd: "openSettingsPageOn"})
 		} else {
-			u.client.uiCommand("openSettingsPageOff")
+			u.client.uiCommand(&uiCmd{cmd: "openSettingsPageOff"})
 		}
 	case "openLandingPage":
 		if state == "1" {
-			u.client.uiCommand("openLandingPageOn")
+			u.client.uiCommand(&uiCmd{cmd: "openLandingPageOn"})
 		} else {
-			u.client.uiCommand("openLandingPageOff")
+			u.client.uiCommand(&uiCmd{cmd: "openLandingPageOff"})
 		}
 	case "stopAutoUpdate":
 		if state == "1" {
-			u.client.uiCommand("stopAutoUpdateOn")
+			u.client.uiCommand(&uiCmd{cmd: "stopAutoUpdateOn"})
 		} else {
-			u.client.uiCommand("stopAutoUpdateOff")
+			u.client.uiCommand(&uiCmd{cmd: "stopAutoUpdateOff"})
 		}
+	case "updateCustomTunnellingDomains":
+		args := []string{}
+		raw := strings.Split(state, "\n")
+		for _, v := range raw {
+			u, e := url.Parse(v)
+			if e == nil {
+				switch {
+				case u.Host != "":
+					args = append(args, u.Host)
+				case u.Path != "":
+					args = append(args, u.Path)
+				}
+			}
+		}
+		u.client.uiCommand(&uiCmd{cmd: "updateCustomTunnellingDomains", args: args})
 
 	case "locale":
-		u.client.uiCommand(strings.Join([]string{"changeLocale", state}, "|"))
+		u.client.uiCommand(&uiCmd{cmd: strings.Join([]string{"changeLocale", state}, "|")})
 	default:
 		http.Error(w, "Unexpected settings option", http.StatusBadRequest)
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(""))
+}
+
+func (c *fireflyClient) uiCommand(cmd *uiCmd) {
+	c.uiCh <- cmd
+}
+
+func (c *fireflyClient) uiVersion() string {
+	cmd := &uiCmd{cmd: "version", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(string)
+}
+
+func (c *fireflyClient) uiTunnellingAll() bool {
+	cmd := &uiCmd{cmd: "tunnellingAll?", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(bool)
+}
+
+func (c *fireflyClient) uiHTTPAddr() string {
+	cmd := &uiCmd{cmd: "httpAddr", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(string)
+}
+
+func (c *fireflyClient) uiSocksAddr() string {
+	cmd := &uiCmd{cmd: "socksAddr", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(string)
+}
+
+func (c *fireflyClient) uiLandingPage() string {
+	cmd := &uiCmd{cmd: "landingPage", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(string)
+}
+
+func (c *fireflyClient) uiCurrentLocale() string {
+	cmd := &uiCmd{cmd: "currentLocale", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(string)
+}
+
+func (c *fireflyClient) uiOpenSettingsPage() bool {
+	cmd := &uiCmd{cmd: "openSettingsPage?", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(bool)
+}
+
+func (c *fireflyClient) uiOpenLandingPage() bool {
+	cmd := &uiCmd{cmd: "openLandingPage?", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(bool)
+}
+
+func (c *fireflyClient) uiStopAutoUpdate() bool {
+	cmd := &uiCmd{cmd: "stopAutoUpdate?", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(bool)
+}
+
+func (c *fireflyClient) uiCustomTunnellingDomains() string {
+	cmd := &uiCmd{cmd: "customTunnellingDomains", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(string)
+}
+
+// use channel to avoid races
+func (c *fireflyClient) uiCommandProc() {
+	for {
+		cmd := <-c.uiCh
+		switch {
+		case cmd.cmd == "openSettingsPageOn":
+			c.switchFlags("openSettingsPage", true)
+		case cmd.cmd == "openSettingsPageOff":
+			c.switchFlags("openSettingsPage", false)
+		case cmd.cmd == "openLandingPageOn":
+			c.switchFlags("openLandingPage", true)
+		case cmd.cmd == "openLandingPageOff":
+			c.switchFlags("openLandingPage", false)
+		case cmd.cmd == "tunnellingAllOn":
+			c.switchTunnelling(true)
+		case cmd.cmd == "tunnellingAllOff":
+			c.switchTunnelling(false)
+		case cmd.cmd == "stopAutoUpdateOn":
+			c.switchFlags("stopAutoUpdate", true)
+			c.stopUpdater()
+		case cmd.cmd == "stopAutoUpdateOff":
+			c.switchFlags("stopAutoUpdate", false)
+			c.startUpdater()
+		case strings.HasPrefix(cmd.cmd, "changeLocale|"):
+			lang := strings.Split(cmd.cmd, "|")[1]
+			c.changeLocale(lang)
+		case cmd.cmd == "version":
+			cmd.ret <- c.version()
+		case cmd.cmd == "httpAddr":
+			cmd.ret <- c.httpListener.Addr().String()
+		case cmd.cmd == "socksAddr":
+			cmd.ret <- c.socksListener.Addr().String()
+		case cmd.cmd == "landingPage":
+			cmd.ret <- c.options.landingPage
+		case cmd.cmd == "tunnellingAll?":
+			cmd.ret <- c.socksHandler.tunnellingAll
+		case cmd.cmd == "openSettingsPage?":
+			cmd.ret <- c.openSettingsPage()
+		case cmd.cmd == "openLandingPage?":
+			cmd.ret <- c.openLandingPage()
+		case cmd.cmd == "stopAutoUpdate?":
+			cmd.ret <- c.stopAutoUpdate()
+		case cmd.cmd == "currentLocale":
+			cmd.ret <- i18n.CurrentLocale()
+		case cmd.cmd == "customTunnellingDomains":
+			cmd.ret <- strings.Join(c.customTunnellingDomains(), "\n")
+		case cmd.cmd == "updateCustomTunnellingDomains":
+			c.updateCustomTunnellingDomains(cmd.args.([]string))
+
+		default:
+			log.Printf("unknown command from UI")
+		}
+	}
 }

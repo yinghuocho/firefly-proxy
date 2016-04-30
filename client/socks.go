@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"path"
 	"strings"
 	"time"
 
@@ -10,36 +11,41 @@ import (
 )
 
 type relayHandler struct {
-	basic          *gosocks.BasicSocksHandler
-	nextHop        string
-	blockedDomains map[string]bool
-	tunnellingAll   bool
+	basic                     *gosocks.BasicSocksHandler
+	nextHop                   string
+	embeddedTunnellingDomains map[string]bool
+	customTunnellingDomains   []string
+	tunnellingAll             bool
 }
 
 func (r *relayHandler) lookup(dst string, conn *gosocks.SocksConn) chain.SocksChain {
-	if r.tunnellingAll || r.blockedDomains == nil {
-		return &chain.SocksSocksChain{
-			SocksDialer: &gosocks.SocksDialer{
-				Timeout: conn.Timeout,
-				Auth:    &gosocks.AnonymousClientAuthenticator{},
-			},
-			SocksAddr: r.nextHop,
-		}
+	chain := &chain.SocksSocksChain{
+		SocksDialer: &gosocks.SocksDialer{
+			Timeout: conn.Timeout,
+			Auth:    &gosocks.AnonymousClientAuthenticator{},
+		},
+		SocksAddr: r.nextHop,
+	}
+
+	if r.tunnellingAll {
+		return chain
 	}
 
 	labels := strings.Split(dst, ".")
 	for i := 0; i < len(labels); i++ {
-		_, ok := r.blockedDomains[strings.Join(labels[i:], ".")]
+		_, ok := r.embeddedTunnellingDomains[strings.Join(labels[i:], ".")]
 		if ok {
-			return &chain.SocksSocksChain{
-				SocksDialer: &gosocks.SocksDialer{
-					Timeout: conn.Timeout,
-					Auth:    &gosocks.AnonymousClientAuthenticator{},
-				},
-				SocksAddr: r.nextHop,
-			}
+			return chain
 		}
 	}
+
+	for _, v := range r.customTunnellingDomains {
+		matched, _ := path.Match(v, dst)
+		if matched {
+			return chain
+		}
+	}
+
 	return nil
 }
 

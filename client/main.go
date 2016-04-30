@@ -38,18 +38,17 @@ const (
 )
 
 type clientOptions struct {
-	logFilename       string
-	pidFilename       string
-	tunnellingAll     bool
-	blockedDomainFile string
-	landingPage       string
-	updatePubKey      string
-	updateCaCerts     string
-	updateURL         string
-	localSocksAddr    string
-	localHTTPAddr     string
-	localUIAddr       string
-	trackingID        string
+	logFilename    string
+	pidFilename    string
+	tunnellingAll  bool
+	landingPage    string
+	updatePubKey   string
+	updateCaCerts  string
+	updateURL      string
+	localSocksAddr string
+	localHTTPAddr  string
+	localUIAddr    string
+	trackingID     string
 }
 
 type fireflyClient struct {
@@ -72,7 +71,7 @@ type fireflyClient struct {
 	systrayItems fireflyMenu
 	ui           *fireflyUI
 
-	uiCh        chan string
+	uiCh        chan *uiCmd
 	exitCh      chan error
 	chExitFuncs chan func()
 }
@@ -91,7 +90,7 @@ func genUUID() (string, error) {
 	return fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
 }
 
-func (c *fireflyClient) loadEmbeddedBlockedDomains() ([]byte, error) {
+func (c *fireflyClient) loadEmbeddedTunnellingDomains() ([]byte, error) {
 	data, err := c.fs.Get("domains.txt")
 	if err != nil {
 		log.Printf("fail to load embedded domains: %s", err)
@@ -100,32 +99,28 @@ func (c *fireflyClient) loadEmbeddedBlockedDomains() ([]byte, error) {
 	return data, nil
 }
 
-func (c *fireflyClient) loadBlockedDomains() map[string]bool {
+func (c *fireflyClient) loadTunnellingDomains() map[string]bool {
 	var scanner *bufio.Scanner
 	ret := make(map[string]bool)
-	path := c.options.blockedDomainFile
-	if path != "" {
-		file, err := os.Open(c.options.blockedDomainFile)
-		if err != nil {
-			log.Printf("fail to load tunneling domains from %s: %s", path, err)
-			return nil
-		}
-		defer file.Close()
-		scanner = bufio.NewScanner(file)
-	} else {
-		data, err := c.loadEmbeddedBlockedDomains()
-		if err != nil {
-			return nil
-		}
-		scanner = bufio.NewScanner(bytes.NewBuffer(data))
-	}
 
+	data, err := c.loadEmbeddedTunnellingDomains()
+	if err != nil {
+		log.Printf("fail to load embedded domains: %s", err)
+		return nil
+	}
+	scanner = bufio.NewScanner(bytes.NewBuffer(data))
 	for scanner.Scan() {
 		s := strings.Trim(scanner.Text(), " \r\n ")
 		if !strings.HasPrefix(s, "#") {
 			ret[s] = true
 		}
 	}
+
+	customDomains := c.customTunnellingDomains()
+	for _, v := range customDomains {
+		ret[v] = true
+	}
+
 	return ret
 }
 
@@ -210,6 +205,18 @@ func (c *fireflyClient) isTunnellingAll(domains map[string]bool) bool {
 	return false
 }
 
+func (c *fireflyClient) customTunnellingDomains() []string {
+	if c.appData != nil {
+		v, ok := c.appData.Get("customTunnellingDomains")
+		if ok {
+			return strings.Split(v, "\n")
+		} else {
+			return []string{}
+		}
+	}
+	return []string{}
+}
+
 func (c *fireflyClient) openSettingsPage() bool {
 	if c.appData != nil {
 		v, ok := c.appData.Get("openSettingsPage")
@@ -257,15 +264,14 @@ func (c *fireflyClient) stopUpdater() {
 	}
 }
 
-func (c *fireflyClient) switchTunnelling(state bool) {
-	newHandler := &relayHandler{
-		basic:          c.socksHandler.basic,
-		nextHop:        c.socksHandler.nextHop,
-		blockedDomains: c.socksHandler.blockedDomains,
-		tunnellingAll:  state,
+func (c *fireflyClient) updateCustomTunnellingDomains(domains []string) {
+	if c.appData != nil {
+		c.appData.Put("customTunnellingDomains", strings.Join(domains, "\n"))
 	}
-	c.socksHandler = newHandler
-	c.socksProxy.ChangeHandler(c.socksHandler)
+	c.changeRelayHandler()
+}
+
+func (c *fireflyClient) switchTunnelling(state bool) {
 	if c.appData != nil {
 		if state {
 			c.appData.Put("tunnellingAll", "1")
@@ -273,6 +279,20 @@ func (c *fireflyClient) switchTunnelling(state bool) {
 			c.appData.Put("tunnellingAll", "0")
 		}
 	}
+	c.changeRelayHandler()
+}
+
+func (c *fireflyClient) changeRelayHandler() {
+	domains := c.loadTunnellingDomains()
+	newHandler := &relayHandler{
+		basic:                     c.socksHandler.basic,
+		nextHop:                   c.socksHandler.nextHop,
+		customTunnellingDomains:   c.customTunnellingDomains(),
+		embeddedTunnellingDomains: domains,
+		tunnellingAll:             c.isTunnellingAll(domains),
+	}
+	c.socksHandler = newHandler
+	c.socksProxy.ChangeHandler(c.socksHandler)
 }
 
 func (c *fireflyClient) switchFlags(name string, state bool) {
@@ -340,41 +360,6 @@ func (c *fireflyClient) changeLocale(locale string) {
 	c.reloadSystray()
 }
 
-func (c *fireflyClient) uiCommand(cmd string) {
-	c.uiCh <- cmd
-}
-
-func (c *fireflyClient) uiCommandProc() {
-	for {
-		cmd := <-c.uiCh
-		switch {
-		case cmd == "openSettingsPageOn":
-			c.switchFlags("openSettingsPage", true)
-		case cmd == "openSettingsPageOff":
-			c.switchFlags("openSettingsPage", false)
-		case cmd == "openLandingPageOn":
-			c.switchFlags("openLandingPage", true)
-		case cmd == "openLandingPageOff":
-			c.switchFlags("openLandingPage", false)
-		case cmd == "tunnellingAllOn":
-			c.switchTunnelling(true)
-		case cmd == "tunnellingAllOff":
-			c.switchTunnelling(false)
-		case cmd == "stopAutoUpdateOn":
-			c.switchFlags("stopAutoUpdate", true)
-			c.stopUpdater()
-		case cmd == "stopAutoUpdateOff":
-			c.switchFlags("stopAutoUpdate", false)
-			c.startUpdater()
-		case strings.HasPrefix(cmd, "changeLocale|"):
-			lang := strings.Split(cmd, "|")[1]
-			c.changeLocale(lang)
-		default:
-			log.Printf("unknown command from UI")
-		}
-	}
-}
-
 func (c *fireflyClient) exit(err error) {
 	defer func() { c.exitCh <- err }()
 	for {
@@ -420,7 +405,6 @@ func (c *fireflyClient) _main() {
 	flag.StringVar(&c.options.localSocksAddr, "local-socks-addr", "127.0.0.1:38250", "SOCKS proxy address")
 	flag.StringVar(&c.options.localHTTPAddr, "local-http-addr", "127.0.0.1:38251", "HTTP proxy address")
 	flag.StringVar(&c.options.localUIAddr, "local-ui-addr", "127.0.0.1:38252", "Web UI address, use random local address when specified address is not available")
-	flag.StringVar(&c.options.blockedDomainFile, "blocked-domain-file", "", "blocked domains that need to go through tunnel, use embedded domain list if not specified")
 	flag.BoolVar(&c.options.tunnellingAll, "tunnelling-all", false, "whether tunnelling all traffic")
 	flag.StringVar(&c.options.logFilename, "logfile", "", "file to record log")
 	flag.StringVar(&c.options.pidFilename, "pidfile", "", "file to save process id")
@@ -502,12 +486,13 @@ func (c *fireflyClient) _main() {
 	log.Printf("tunnel proxy (SOCKS) listens on %s", tunnelProxyAddr)
 
 	// start SOCKS proxy
-	domains := c.loadBlockedDomains()
+	domains := c.loadTunnellingDomains()
 	c.socksHandler = &relayHandler{
-		basic:          &gosocks.BasicSocksHandler{},
-		blockedDomains: domains,
-		tunnellingAll:  c.isTunnellingAll(domains),
-		nextHop:        tunnelProxyAddr,
+		basic: &gosocks.BasicSocksHandler{},
+		embeddedTunnellingDomains: domains,
+		customTunnellingDomains:   c.customTunnellingDomains(),
+		tunnellingAll:             c.isTunnellingAll(domains),
+		nextHop:                   tunnelProxyAddr,
 	}
 	c.socksProxy = gosocks.NewServer(
 		localSocksAddr,
@@ -561,6 +546,7 @@ func (c *fireflyClient) _main() {
 		}
 	}
 	c.ui = startUI(c, uiListener)
+	// see ui.go
 	go c.uiCommandProc()
 
 	// set PAC
@@ -614,7 +600,7 @@ func (c *fireflyClient) _main() {
 
 func main() {
 	client := &fireflyClient{
-		uiCh:        make(chan string),
+		uiCh:        make(chan *uiCmd),
 		exitCh:      make(chan error, 1),
 		chExitFuncs: make(chan func(), 10),
 	}

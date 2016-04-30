@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>{{ i18n "UI_TITLE" }}</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<base href={{.Root}}>
+<script type="text/javascript" src="static/js/jquery-1.12.3.min.js"></script>
+</head>
+<body>
+<p>
+<h1>{{ .Version }}</h1>
+</p>
+
+<p>
+<img src="static/icons/128.ico" alt="Firefly"></img>
+</p>
+
+<div id="alert"></div>
+
+<h2>{{ i18n "UI_LANG" }}</h2>
+<ul style="list-style: none;">
+<li><select id="locale"> 
+    {{ range $key, $value := .Locales }}
+	   <option value="{{ $key }}"{{ if eq $.CurrentLocale $key }} selected {{ end }}>
+	   {{ $value }}</option> 
+	{{ end }}
+</select></li>
+</ul>
+
+<h2>{{ i18n "UI_ADDR" }}</h2>
+<ul style="list-style: none;">
+<li>{{ i18n "UI_HTTPADDR" }}: {{ .HTTPProxyAddr }}</li>
+<li>{{ i18n "UI_SOCKSADDR" }}: {{ .SocksProxyAddr }}</li>
+</ul>
+
+<h2>{{ i18n "UI_SETTINGS" }}</h2>
+<ul style="list-style: none;">
+<li><label><input type="checkbox" id="tunnellingAll"{{ if .TunnellingAll }} checked {{ end }}>
+		{{ i18n "UI_PROXY_ALL" | unescaped }} </label>
+	<ul style="list-style: none;">
+	<li>
+	<p>
+	{{ i18n "UI_ADDITIONAL_DOMAINS" }}: <br>
+	<textarea rows="8" cols="50" id="customTunnellingDomains">{{ .CustomTunnellingDomains }}</textarea> <br> 
+	<input type="submit" id="updateCustomTunnellingDomains" value='{{ i18n "UI_UPDATE" }}'>
+	</p>
+	</li>
+	</ul>
+</li>
+
+<li><label>
+    <input type="checkbox" id="openSettingsPage"{{ if .OpenSettingsPage }} checked {{ end }}> {{ i18n "UI_SETTINGS_PAGE" }} 
+</label></li>
+
+<li><label>
+    <input type="checkbox" id="openLandingPage"{{ if .OpenLandingPage }} checked {{ end }}>
+	{{ i18n "UI_LANDING_PAGE" }}: <a href="{{ .LandingPage }}" target="_blank">{{ .LandingPage }}</a> 
+</label></li>
+
+<li><label>
+    <input type="checkbox" id="stopAutoUpdate"{{ if .StopAutoUpdate }} checked {{ end }}>
+	{{ i18n "UI_STOP_AUTOUPDATE" }} 
+</label></li>
+
+</ul>
+
+<h2>{{ i18n "UI_FEEDBACK" }}</h2>
+<ul style="list-style: none;">
+<li>{{ i18n "UI_CLICK_LINK" }}: <a href="https://github.com/yinghuocho/firefly-proxy/issues" target="_blank">
+	https://github.com/yinghuocho/firefly-proxy/issues</a>
+</li>
+</ul>
+
+<script>
+$(document).ready(function(e) {
+    if ( /firefox/.test(navigator.userAgent.toLowerCase()) ) {
+        $("#alert").append("<h3><strong>{{ i18n "UI_FIREFOXHELP" }}</strong></h3>")
+    }
+    
+    if ( $('#tunnellingAll').is(':checked') ) {
+    	$("#customTunnellingDomains, #updateCustomTunnellingDomains").attr("disabled","disabled");
+    }
+}); 
+    
+$("input:checkbox").change(function() { 
+    var isChecked = $(this).is(":checked") ? 1:0; 
+    $.ajax({
+        url: 'settings',
+        type: 'POST',
+        data: { id:$(this).attr("id"), state:isChecked },
+        success: function() {
+            window.location.reload(true);
+        },
+    });        
+}); 
+
+$('#updateCustomTunnellingDomains').on("click",function() {
+	var domains = $("textarea#customTunnellingDomains").val();
+	$.ajax({
+        url: 'settings',
+        type: 'POST',
+        data: { id:$(this).attr("id"), state:domains },
+        success: function() {
+            window.location.reload(true);
+        },
+    });
+}); 
+    
+$('select').on('change', function() {
+    var state = this.value;
+    $.ajax({
+        url: 'settings',
+        type: 'POST',
+        data: { id:$(this).attr("id"), state:state },
+        success: function() {
+            window.location.reload(true);
+        },
+    }); 
+});      
+</script>
+</body>
+</html>
