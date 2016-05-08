@@ -87,10 +87,10 @@ func enablePAC(pacURL string) {
 	atomic.StoreInt32(&isPACOn, 1)
 }
 
-func disablePAC() {
+func disablePAC(pacURL string) {
 	if atomic.CompareAndSwapInt32(&isPACOn, 1, 0) {
 		log.Printf("Unsetting firefly as system proxy")
-		err := pac.Off()
+		err := pac.Off(pacURL)
 		if err != nil {
 			log.Printf("Unable to unset firefly as system proxy: %s", err)
 		}

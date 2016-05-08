@@ -560,7 +560,9 @@ func (c *fireflyClient) _main() {
 	}
 	pacURL := c.ui.handle(pacFilename(), pacHandler(c.httpListener.Addr().String()))
 	enablePAC(pacURL)
-	c.addExitFunc(disablePAC)
+	c.addExitFunc(func() {
+		disablePAC(pacURL)
+	})
 
 	// systray
 	c.addExitFunc(systray.Quit)
