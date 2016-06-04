@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	FIREFLY_VERSION = "0.4.2"
+	FIREFLY_VERSION = "0.4.3"
 )
 
 type clientOptions struct {
@@ -49,6 +49,7 @@ type clientOptions struct {
 	localHTTPAddr  string
 	localUIAddr    string
 	trackingID     string
+	cmdMode        bool
 }
 
 type fireflyClient struct {
@@ -247,6 +248,20 @@ func (c *fireflyClient) stopAutoUpdate() bool {
 	return false
 }
 
+func (c *fireflyClient) setPAC() bool {
+	if c.options.cmdMode {
+		return false
+	}
+
+	if c.appData != nil {
+		v, ok := c.appData.Get("setPAC")
+		if ok && v == "0" {
+			return false
+		}
+	}
+	return true
+}
+
 func (c *fireflyClient) startUpdater() {
 	proxyURL, _ := url.Parse("http://" + c.httpListener.Addr().String())
 	privKey, e := c.loadUpdateKey()
@@ -357,7 +372,9 @@ func (c *fireflyClient) changeLocale(locale string) {
 		c.appData.Put("locale", locale)
 	}
 	c.configureI18n()
-	c.reloadSystray()
+	if !c.options.cmdMode {
+		c.reloadSystray()
+	}
 }
 
 func (c *fireflyClient) exit(err error) {
@@ -401,7 +418,8 @@ func (c *fireflyClient) handleSignals() {
 	}()
 }
 
-func (c *fireflyClient) _main() {
+func (c *fireflyClient) parseOptions() {
+	flag.BoolVar(&c.options.cmdMode, "cmd-mode", false, "command line mode")
 	flag.StringVar(&c.options.localSocksAddr, "local-socks-addr", "127.0.0.1:38250", "SOCKS proxy address")
 	flag.StringVar(&c.options.localHTTPAddr, "local-http-addr", "127.0.0.1:38251", "HTTP proxy address")
 	flag.StringVar(&c.options.localUIAddr, "local-ui-addr", "127.0.0.1:38252", "Web UI address, use random local address when specified address is not available")
@@ -414,7 +432,9 @@ func (c *fireflyClient) _main() {
 	flag.StringVar(&c.options.updateURL, "update-url", "https://update.gofirefly.org/update", "url for auto-update")
 	flag.StringVar(&c.options.trackingID, "tracking-id", "UA-76209591-1", "Google Analytics tracking ID")
 	flag.Parse()
+}
 
+func (c *fireflyClient) _main() {
 	var err error
 	c.fs, err = tarfs.New(Resources, "")
 	if err != nil {
@@ -546,27 +566,32 @@ func (c *fireflyClient) _main() {
 		}
 	}
 	c.ui = startUI(c, uiListener)
+	log.Printf("settings url: %s", c.ui.settingsUrl)
 	// see ui.go
 	go c.uiCommandProc()
 
-	// set PAC
-	icon, err := c.fs.Get("icons/24.ico")
-	if err != nil {
-		log.Fatalf("Unable to load icon for PAC: %s", err)
+	if !c.options.cmdMode && c.setPAC() {
+		// set PAC
+		icon, err := c.fs.Get("icons/24.ico")
+		if err != nil {
+			log.Fatalf("Unable to load icon for PAC: %s", err)
+		}
+		err = promptPrivilegeEscalation(icon)
+		if err != nil {
+			log.Fatalf("Unable to escalate priviledge for setting PAC: %s", err)
+		}
+		pacURL := c.ui.handle(pacFilename(), pacHandler(c.httpListener.Addr().String()))
+		enablePAC(pacURL)
+		c.addExitFunc(func() {
+			disablePAC(pacURL)
+		})
 	}
-	err = promptPrivilegeEscalation(icon)
-	if err != nil {
-		log.Fatalf("Unable to escalate priviledge for setting PAC: %s", err)
-	}
-	pacURL := c.ui.handle(pacFilename(), pacHandler(c.httpListener.Addr().String()))
-	enablePAC(pacURL)
-	c.addExitFunc(func() {
-		disablePAC(pacURL)
-	})
 
 	// systray
-	c.addExitFunc(systray.Quit)
-	c.configureSystray()
+	if !c.options.cmdMode {
+		c.addExitFunc(systray.Quit)
+		c.configureSystray()
+	}
 
 	// clean exit with signals
 	go c.handleSignals()
@@ -574,16 +599,18 @@ func (c *fireflyClient) _main() {
 	// pid file
 	utils.SavePid(c.options.pidFilename)
 
-	// open starting pages
-	if c.openSettingsPage() {
-		c.ui.show()
-	}
-	if c.openLandingPage() {
+	if !c.options.cmdMode {
+		// open starting pages
 		if c.openSettingsPage() {
-			// wait to avoid launching new browser window
-			time.Sleep(3 * time.Second)
+			c.ui.show()
 		}
-		c.ui.open(c.options.landingPage)
+		if c.openLandingPage() {
+			if c.openSettingsPage() {
+				// wait to avoid launching new browser window
+				time.Sleep(3 * time.Second)
+			}
+			c.ui.open(c.options.landingPage)
+		}
 	}
 
 	// updater
@@ -606,5 +633,10 @@ func main() {
 		exitCh:      make(chan error, 1),
 		chExitFuncs: make(chan func(), 10),
 	}
-	systray.Run(client._main)
+	client.parseOptions()
+	if !client.options.cmdMode {
+		systray.Run(client._main)
+	} else {
+		client._main()
+	}
 }

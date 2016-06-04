@@ -58,6 +58,11 @@
 </label></li>
 
 <li><label>
+    <input type="checkbox" id="setPAC"{{ if .SetPAC }} checked {{ end }}>
+    {{ i18n "UI_SET_PAC" }} 
+</label></li>
+
+<li><label>
     <input type="checkbox" id="stopAutoUpdate"{{ if .StopAutoUpdate }} checked {{ end }}>
 	{{ i18n "UI_STOP_AUTOUPDATE" }} 
 </label></li>

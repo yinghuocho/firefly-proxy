@@ -12,6 +12,7 @@
     "UI_ADDITIONAL_DOMAINS": "其他通过代理转发的网站(域名)",
     "UI_SETTINGS_PAGE": "Firefly 启动时自动打开配置界面(即本页面)",
     "UI_LANDING_PAGE": "Firefly 启动时自动打开内置首页",
+    "UI_SET_PAC": "Firefly 启动时自动设置浏览器代理",
     "UI_STOP_AUTOUPDATE": "停止自动版本更新",
     "UI_FEEDBACK": "问题/反馈",
     "UI_CLICK_LINK": "请打开这个链接",

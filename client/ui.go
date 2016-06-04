@@ -118,6 +118,7 @@ type fireflySettings struct {
 	TunnellingAll           bool
 	OpenSettingsPage        bool
 	OpenLandingPage         bool
+	SetPAC                  bool
 	StopAutoUpdate          bool
 	Locales                 map[string]string
 	CurrentLocale           string
@@ -143,6 +144,7 @@ func (u *fireflyUI) settingsGET(w http.ResponseWriter, req *http.Request) {
 		TunnellingAll:           u.client.uiTunnellingAll(),
 		OpenSettingsPage:        u.client.uiOpenSettingsPage(),
 		OpenLandingPage:         u.client.uiOpenLandingPage(),
+		SetPAC:                  u.client.uiSetPAC(),
 		StopAutoUpdate:          u.client.uiStopAutoUpdate(),
 		CustomTunnellingDomains: u.client.uiCustomTunnellingDomains(),
 		Locales:                 locales,
@@ -186,6 +188,12 @@ func (u *fireflyUI) settingsPOST(w http.ResponseWriter, req *http.Request) {
 		} else {
 			u.client.uiCommand(&uiCmd{cmd: "stopAutoUpdateOff"})
 		}
+	case "setPAC":
+		if state == "1" {
+			u.client.uiCommand(&uiCmd{cmd: "setPACOn"})
+		} else {
+			u.client.uiCommand(&uiCmd{cmd: "setPACOff"})
+		}
 	case "updateCustomTunnellingDomains":
 		args := []string{}
 		raw := strings.Split(state, "\n")
@@ -220,6 +228,13 @@ func (c *fireflyClient) uiVersion() string {
 	c.uiCh <- cmd
 	v := <-cmd.ret
 	return v.(string)
+}
+
+func (c *fireflyClient) uiSetPAC() bool {
+	cmd := &uiCmd{cmd: "setPAC?", ret: make(chan interface{})}
+	c.uiCh <- cmd
+	v := <-cmd.ret
+	return v.(bool)
 }
 
 func (c *fireflyClient) uiTunnellingAll() bool {
@@ -298,6 +313,10 @@ func (c *fireflyClient) uiCommandProc() {
 			c.switchFlags("openLandingPage", true)
 		case cmd.cmd == "openLandingPageOff":
 			c.switchFlags("openLandingPage", false)
+		case cmd.cmd == "setPACOn":
+			c.switchFlags("setPAC", true)
+		case cmd.cmd == "setPACOff":
+			c.switchFlags("setPAC", false)
 		case cmd.cmd == "tunnellingAllOn":
 			c.switchTunnelling(true)
 		case cmd.cmd == "tunnellingAllOff":
@@ -325,6 +344,8 @@ func (c *fireflyClient) uiCommandProc() {
 			cmd.ret <- c.openSettingsPage()
 		case cmd.cmd == "openLandingPage?":
 			cmd.ret <- c.openLandingPage()
+		case cmd.cmd == "setPAC?":
+			cmd.ret <- c.setPAC()
 		case cmd.cmd == "stopAutoUpdate?":
 			cmd.ret <- c.stopAutoUpdate()
 		case cmd.cmd == "currentLocale":
