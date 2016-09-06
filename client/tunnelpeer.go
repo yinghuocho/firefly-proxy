@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	meekTR http.RoundTripper = &http.Transport{
+	meekTR *http.Transport = &http.Transport{
 		Proxy: nil,
 		Dial: (&net.Dialer{
 			Timeout:   30 * time.Second,
@@ -30,7 +30,7 @@ func (t *tunnelHandler) loadTunnelPeers(fs *tarfs.FileSystem) error {
 	var peers []tunnelPeer
 	data, err := fs.Get("meektunnels.txt")
 	if err != nil {
-		log.Printf("fail to load embedded meek tunnels (resources/meektunnels.txt)")
+		log.Printf("fail to load embedded meek tunnels (resources/meektunnels.txt): %s", err)
 		return err
 	}
 	scanner := bufio.NewScanner(bytes.NewBuffer(data))
