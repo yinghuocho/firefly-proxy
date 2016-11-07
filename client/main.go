@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	FIREFLY_VERSION = "0.4.3"
+	FIREFLY_VERSION = "0.4.4"
 )
 
 type clientOptions struct {
@@ -469,6 +469,11 @@ func (c *fireflyClient) _main() {
 		os.Exit(1)
 	}
 
+	// state, report without using proxy
+	c.state = newState(c.uuid(), c.options.trackingID, nil)
+	go c.state.run()
+	c.state.event("client", "launch", strings.Join([]string{runtime.GOOS, runtime.GOARCH}, "_"), 0)
+
 	// start tunnel client
 	c.tunnelListener, err = net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
 	if err != nil {
@@ -476,6 +481,7 @@ func (c *fireflyClient) _main() {
 		os.Exit(1)
 	}
 	handler := &tunnelHandler{
+		state:   c.state,
 		caCerts: c.loadCaCerts(),
 		appData: c.appData,
 		ch:      make(chan *tunnelRequest),
@@ -484,7 +490,7 @@ func (c *fireflyClient) _main() {
 	}
 	err = handler.loadTunnelPeers(c.fs)
 	if err != nil {
-		log.Printf("FATAL: fail to load tunnel peers")
+		log.Printf("FATAL: fail to load tunnel peers: %s", err)
 		os.Exit(1)
 	}
 	go handler.run()
@@ -617,11 +623,6 @@ func (c *fireflyClient) _main() {
 	if !c.stopAutoUpdate() {
 		c.startUpdater()
 	}
-
-	// state, report without using proxy
-	c.state = newState(c.uuid(), c.options.trackingID, nil)
-	go c.state.run()
-	c.state.event("client", "launch")
 
 	c.waitForExit()
 	os.Exit(0)

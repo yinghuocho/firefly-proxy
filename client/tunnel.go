@@ -25,6 +25,7 @@ type tunnelPeer interface {
 }
 
 type tunnelHandler struct {
+	state   *fireflyState
 	caCerts *x509.CertPool
 	appData *utils.AppData
 
@@ -32,7 +33,7 @@ type tunnelHandler struct {
 	ch   chan *tunnelRequest
 	auth sockstun.TunnelAuthenticator
 
-	peers []tunnelPeer
+	peerGroups map[string][]tunnelPeer
 }
 
 func (t *tunnelHandler) savePeerState(succ tunnelPeer, fail []tunnelPeer) {
@@ -77,32 +78,63 @@ func (s *peerSorter) Less(i, j int) bool {
 	return s.by(s.peers[i], s.peers[j])
 }
 
-func (t *tunnelHandler) sortPeers() {
+func (t *tunnelHandler) sortPeers() []tunnelPeer {
 	state := make(map[string]int)
 	v, ok := t.appData.Get("tunnelPeerState")
 	if ok {
 		json.Unmarshal([]byte(v), &state)
 	}
-
-	// shuffle
-	for i := range t.peers {
-		j := rand.Intn(i + 1)
-		t.peers[i], t.peers[j] = t.peers[j], t.peers[i]
-	}
-
 	// sort by state
 	by := func(p1, p2 tunnelPeer) bool {
 		return state[p1.serialize()] < state[p2.serialize()]
 	}
-	sort.Reverse(&peerSorter{peers: t.peers, by: by})
+
+	var groups [][]tunnelPeer
+	cnt := 0
+	for _, peers := range t.peerGroups {
+		// shuffle
+		cnt += len(peers)
+		for i := range peers {
+			j := rand.Intn(i + 1)
+			peers[i], peers[j] = peers[j], peers[i]
+		}
+		sort.Reverse(&peerSorter{peers: peers, by: by})
+		groups = append(groups, peers)
+	}
+	all := make([]tunnelPeer, cnt)
+	i := 0
+	j := 0
+	cur := 0
+	for {
+		if j < len(groups[i]) {
+			all[cur] = groups[i][j]
+			cur += 1
+			if cur == cnt {
+				break
+			}
+		}
+		i += 1
+		if i >= len(groups) {
+			i = 0
+			j += 1
+		}
+	}
+	return all
 }
 
 func (t *tunnelHandler) muxClient() *mux.Client {
-	conn, succ, failed := t.dialParallel(30 * time.Minute)
+	start := time.Now()
+	conn, succ, failed := t.dialParallel(10 * time.Minute)
+	ms := int(time.Now().Sub(start).Nanoseconds() / 1000)
 	t.savePeerState(succ, failed)
 	if conn == nil {
+		t.state.event("client", "connect-timeout", "", 0)
+		log.Printf("connect attempt timed out")
 		return nil
 	}
+	p := succ.serialize()
+	log.Printf("connected to peer: %s", p)
+	t.state.event("client", "connect-succ", p, ms)
 	return mux.NewClient(conn)
 }
 
@@ -114,9 +146,12 @@ type tunnelDailRet struct {
 func (t *tunnelHandler) dialParallel(timeout time.Duration) (net.Conn, tunnelPeer, []tunnelPeer) {
 	ret := make(chan *tunnelDailRet)
 	quit := make(chan bool)
+
+	// rand by historical connectivity
+	all := t.sortPeers()
 	// give enough buffer so token channel would not be blocked
 	// initiate five attemps
-	waiting := len(t.peers)
+	waiting := len(all)
 	token := make(chan bool, waiting)
 	for i := 0; i < 5; i++ {
 		token <- true
@@ -125,9 +160,7 @@ func (t *tunnelHandler) dialParallel(timeout time.Duration) (net.Conn, tunnelPee
 			break
 		}
 	}
-	// rand by historical connectivity
-	t.sortPeers()
-	for _, peer := range t.peers {
+	for _, peer := range all {
 		go func(p tunnelPeer) {
 			select {
 			case <-token:
@@ -153,13 +186,14 @@ func (t *tunnelHandler) dialParallel(timeout time.Duration) (net.Conn, tunnelPee
 		case r := <-ret:
 			if r.c == nil {
 				failedCnt++
+				log.Printf("failed to connect peer: %s", r.p.serialize())
 				failedPeers = append(failedPeers, r.p)
 				// one fail, fire another if someone waiting
 				if waiting > 0 {
 					token <- true
 					waiting -= 1
 				}
-				if failedCnt == len(t.peers) {
+				if failedCnt == len(all) {
 					log.Printf("all attemps to connect tunnel address have failed")
 				} else {
 					continue
@@ -207,6 +241,7 @@ func (t *tunnelHandler) muxStream(client *mux.Client) (*mux.Client, *mux.Stream)
 func (t *tunnelHandler) run() {
 	var client *mux.Client
 	var stream *mux.Stream
+loop:
 	for {
 		select {
 		case request := <-t.ch:
@@ -217,7 +252,7 @@ func (t *tunnelHandler) run() {
 				request.ret <- stream
 			}
 		case <-t.quit:
-			break
+			break loop
 		}
 	}
 }

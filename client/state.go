@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -30,7 +31,7 @@ func newState(clientID string, trackingID string, proxyURL *url.URL) *fireflySta
 	}
 }
 
-func (s *fireflyState) reportEvent(category, action string) {
+func (s *fireflyState) reportEvent(category, action, label, value string) {
 	log.Printf("report google analytics event: [%s %s]", category, action)
 	resp, err := s.httpClient.PostForm("https://www.google-analytics.com/collect", url.Values{
 		"v":   {"1"},
@@ -42,7 +43,8 @@ func (s *fireflyState) reportEvent(category, action string) {
 		"t":   {"event"},
 		"ec":  {category},
 		"ea":  {action},
-		"el":  {strings.Join([]string{runtime.GOOS, runtime.GOARCH}, "_")},
+		"el":  {label},
+		"ev":  {value},
 	})
 	if err != nil {
 		log.Printf("error to report google analytics event: %s", err)
@@ -51,8 +53,8 @@ func (s *fireflyState) reportEvent(category, action string) {
 	}
 }
 
-func (s *fireflyState) event(category string, action string) {
-	s.ch <- strings.Join([]string{"event", category, action}, "|")
+func (s *fireflyState) event(category string, action string, label string, value int) {
+	s.ch <- strings.Join([]string{"event", category, action, label, strconv.Itoa(value)}, "|")
 }
 
 func (s *fireflyState) run() {
@@ -61,7 +63,7 @@ func (s *fireflyState) run() {
 		switch {
 		case strings.HasPrefix(cmd, "event"):
 			args := strings.Split(cmd, "|")
-			s.reportEvent(args[1], args[2])
+			s.reportEvent(args[1], args[2], args[3], args[4])
 		}
 	}
 }

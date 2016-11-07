@@ -1,5 +1,5 @@
-VERSION := 0.4.3
-SHORTVERSION := 0.4.3
+VERSION := 0.4.4
+SHORTVERSION := 0.4.4
 
 .PHONY: windows package-windows linux package-linux darwin package-darwin clean
 
@@ -19,13 +19,13 @@ define fpm-debian-build
 	cp $$INSTALLER_RESOURCES/firefly.desktop $$WORKDIR/usr/share/applications && \
 	cp $$INSTALLER_RESOURCES/firefly_256.png $$WORKDIR/usr/share/icons/hicolor/256x256/apps/firefly.png && \
 	\
-	cp firefly $$WORKDIR/usr/bin/firefly-bin && \
+	cp $3 $$WORKDIR/usr/bin/firefly-bin && \
 	cp $$INSTALLER_RESOURCES/firefly.sh $$WORKDIR/usr/bin/firefly && \
 	\
 	chmod -x $$WORKDIR/usr/bin/firefly-bin && \
 	chmod +x $$WORKDIR/usr/bin/firefly && \
 	\
-	fpm --license BSD --description "$$DESC" --vendor yinghuocho --maintainer "yinghuocho <yinghuocho@gmail.com>" --url https://gofirefly.org/ -a $$PKG_ARCH -s dir -t deb -n firefly -v $$VERSION -C $$WORKDIR -f usr;
+	fpm --depends "libappindicator3-1" --license BSD --description "$$DESC" --vendor yinghuocho --maintainer "yinghuocho <yinghuocho@gmail.com>" --url https://gofirefly.org/ -a $$PKG_ARCH -s dir -t deb -n firefly -v $$VERSION -C $$WORKDIR -f usr;
 endef
 
 windows:
@@ -38,8 +38,14 @@ package-windows: windows
 linux: 
 	GOOS=linux GOARCH=amd64 go build -ldflags="-w -s -linkmode internal" -a -o firefly
 
+linux32: 
+	GOOS=linux GOARCH=386 go build -ldflags="-w -s -linkmode internal" -a -o firefly32
+
 package-linux: linux
-	$(call fpm-debian-build,"amd64","${VERSION}")
+	$(call fpm-debian-build,"amd64","${VERSION}","firefly")
+
+package-linux32:
+	$(call fpm-debian-build,"i386","${VERSION}","firefly32")
 
 darwin:
 	GOOS=darwin GOARCH=amd64 go build -ldflags="-w" -a -o firefly_darwin_amd64
