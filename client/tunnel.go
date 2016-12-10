@@ -98,7 +98,8 @@ func (t *tunnelHandler) sortPeers() []tunnelPeer {
 			j := rand.Intn(i + 1)
 			peers[i], peers[j] = peers[j], peers[i]
 		}
-		sort.Reverse(&peerSorter{peers: peers, by: by})
+		// remove shuffle? because the sort is non-stable anyway
+		sort.Sort(sort.Reverse(&peerSorter{peers: peers, by: by}))
 		groups = append(groups, peers)
 	}
 	all := make([]tunnelPeer, cnt)
@@ -125,7 +126,7 @@ func (t *tunnelHandler) sortPeers() []tunnelPeer {
 func (t *tunnelHandler) muxClient() *mux.Client {
 	start := time.Now()
 	conn, succ, failed := t.dialParallel(10 * time.Minute)
-	ms := int(time.Now().Sub(start).Nanoseconds() / 1000)
+	ms := int(time.Now().Sub(start).Nanoseconds() / 1000000)
 	t.savePeerState(succ, failed)
 	if conn == nil {
 		t.state.event("client", "connect-timeout", "", 0)
@@ -133,7 +134,7 @@ func (t *tunnelHandler) muxClient() *mux.Client {
 		return nil
 	}
 	p := succ.serialize()
-	log.Printf("connected to peer: %s", p)
+	log.Printf("connected to peer: %s|%v", p, ms)
 	t.state.event("client", "connect-succ", p, ms)
 	return mux.NewClient(conn)
 }

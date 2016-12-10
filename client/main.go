@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	FIREFLY_VERSION = "0.4.4"
+	FIREFLY_VERSION = "0.4.6"
 )
 
 type clientOptions struct {
@@ -502,11 +502,11 @@ func (c *fireflyClient) _main() {
 		nil,
 	)
 	go func() {
-		err := c.tunnelProxy.Serve(c.tunnelListener)
-		if err != nil {
-			log.Printf("FATAL: error to serve tunnel client (SOCKS): %s", err)
+		e := c.tunnelProxy.Serve(c.tunnelListener)
+		if e != nil {
+			log.Printf("FATAL: error to serve tunnel client (SOCKS): %s", e)
 		}
-		c.exit(err)
+		c.exit(e)
 	}()
 	tunnelProxyAddr := c.tunnelListener.Addr().String()
 	log.Printf("tunnel proxy (SOCKS) listens on %s", tunnelProxyAddr)
@@ -527,11 +527,11 @@ func (c *fireflyClient) _main() {
 		&gosocks.AnonymousServerAuthenticator{},
 	)
 	go func() {
-		err := c.socksProxy.Serve(c.socksListener)
-		if err != nil {
-			log.Printf("FATAL: error to serve SOCKS proxy: %s", err)
+		e := c.socksProxy.Serve(c.socksListener)
+		if e != nil {
+			log.Printf("FATAL: error to serve SOCKS proxy: %s", e)
 		}
-		c.exit(err)
+		c.exit(e)
 	}()
 	log.Printf("SOCKS proxy listens on %s", c.options.localSocksAddr)
 
@@ -550,11 +550,11 @@ func (c *fireflyClient) _main() {
 	c.httpProxy.OnRequest().DoFunc(http2Socks.HTTP)
 	c.httpProxy.OnRequest().HandleConnectFunc(http2Socks.HTTPS)
 	go func() {
-		err := http.Serve(c.httpListener, c.httpProxy)
-		if err != nil {
-			log.Printf("FATAL: error to serve HTTP/S proxy: %s", err)
+		e := http.Serve(c.httpListener, c.httpProxy)
+		if e != nil {
+			log.Printf("FATAL: error to serve HTTP/S proxy: %s", e)
 		}
-		c.exit(err)
+		c.exit(e)
 	}()
 	log.Printf("HTTP/S proxy listens on %s", localHTTPAddr)
 
