@@ -10,7 +10,7 @@
 - **Ubuntu 32位:**
   + [安装版](https://github.com/yinghuocho/download/blob/master/firefly_linux_386_install.deb?raw=true) | [单文件版](https://github.com/yinghuocho/download/blob/master/firefly_linux_386?raw=true)
 - **Android 4.0.3 及以上:**
-  + [直接下载] (https://github.com/yinghuocho/download/blob/master/firefly.apk?raw=true) | [Google Play](https://play.google.com/store/apps/details?id=org.gofirefly.android.vpn)
+  + [直接下载](https://github.com/yinghuocho/download/blob/master/firefly.apk?raw=true) | [Google Play](https://play.google.com/store/apps/details?id=org.gofirefly.android.vpn)
 
 ### Credit
 - [**lantern**](https://github.com/getlantern/lantern)
