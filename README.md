@@ -12,7 +12,7 @@
 - **Android 4.0.3 及以上:**
   + [直接下载](https://github.com/yinghuocho/download/blob/master/firefly.apk?raw=true) | [Google Play](https://play.google.com/store/apps/details?id=org.gofirefly.android.vpn)
 - **iOS 9.3 及以上:**
-  + [App Store](https://itunes.apple.com/us/app/mudhorse-proxy/id1260125306)
+  + [中国 App Store](https://itunes.apple.com/cn/app/%E5%B0%BC%E9%A9%AC%E4%BB%A3%E7%90%86/id1260125306?mt=8) | [US App Store](https://itunes.apple.com/us/app/mudhorse-proxy/id1260125306)
 
 ### Credit
 - [**lantern**](https://github.com/getlantern/lantern)
