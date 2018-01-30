@@ -1,5 +1,7 @@
 ## Firefly 萤火虫
 
+### 请更新至最新版本
+
 ### 下载 
 - **Windows:**            
   + [安装版](https://github.com/yinghuocho/download/blob/master/firefly_windows_386_install.exe?raw=true) | [单文件版](https://github.com/yinghuocho/download/blob/master/firefly_windows_386.exe?raw=true) 
