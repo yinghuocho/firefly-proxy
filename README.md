@@ -2,6 +2,14 @@
 
 ### 请更新至最新版本 (android 0.0.9, 桌面 0.5.0)
 
+### 捐赠 / donation
+萤火虫的带宽费用已超出了我们能够承受的范围，我们正在考虑一些方法，同时请有条件的朋友们积极捐赠，帮助萤火虫继续走下去，谢谢！
+
+| 渠道         | 地址                               | 
+|--------------|------------------------------------|
+| 比特币/Bitcoin| 3DZYimtcbiE5j6uvXBNLeXPoLuwEZth6YB |
+| 贝宝/Paypal  | yinghuocho@gmail.com               | 
+
 ### 下载 
 - **Windows:**            
   + [安装版](https://github.com/yinghuocho/download/blob/master/firefly_windows_386_install.exe?raw=true) | [单文件版](https://github.com/yinghuocho/download/blob/master/firefly_windows_386.exe?raw=true) 
