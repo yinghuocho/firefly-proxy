@@ -2,6 +2,11 @@
 
 ### 请更新至最新版本 (android 0.0.9, 桌面 0.9.7)
 
+### 用户交流
+[中文聊天室 ![Join the chat at https://gitter.im/firefly-proxy/cn-users](https://badges.gitter.im/firefly-proxy/cn-users.svg)](https://gitter.im/firefly-proxy/cn-users?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+[Global Users ![Join the chat at https://gitter.im/firefly-proxy/Lobby](https://badges.gitter.im/firefly-proxy/Lobby.svg)](https://gitter.im/firefly-proxy/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ### 下载 
 - **Windows:**            
   + [安装版](https://github.com/yinghuocho/download/blob/master/firefly_windows_386_install.exe?raw=true) | [单文件版](https://github.com/yinghuocho/download/blob/master/firefly_windows_386.exe?raw=true) 
