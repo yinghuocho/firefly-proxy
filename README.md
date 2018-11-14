@@ -1,6 +1,6 @@
 ## Firefly 萤火虫
 
-### 请更新至最新版本 (android 0.1.0, 桌面 0.9.7)
+### 请更新至最新版本 (android 0.1.0, 桌面 0.9.8)
 
 ### 用户交流
 [中文聊天室 ![Join the chat at https://gitter.im/firefly-proxy/cn-users](https://badges.gitter.im/firefly-proxy/cn-users.svg)](https://gitter.im/firefly-proxy/cn-users?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -18,8 +18,6 @@
   + [安装版](https://raw.githubusercontent.com/cdtmirrors/yhc/master/yhc.dmg) | [单文件版](https://github.com/yinghuocho/download/blob/master/firefly_darwin_amd64?raw=true)
 - **Ubuntu 64位:**  
   + [安装版](https://github.com/yinghuocho/download/blob/master/firefly_linux_amd64_install.deb?raw=true) | [单文件版](https://github.com/yinghuocho/download/blob/master/firefly_linux_amd64?raw=true)
-- **Ubuntu 32位:**
-  + [安装版](https://github.com/yinghuocho/download/blob/master/firefly_linux_386_install.deb?raw=true) | [单文件版](https://github.com/yinghuocho/download/blob/master/firefly_linux_386?raw=true)
 
 ### Credit
 - [**lantern**](https://github.com/getlantern/lantern)
